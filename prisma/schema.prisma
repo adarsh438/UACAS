@@ -1,0 +1,823 @@
+// prisma/schema.prisma — NAAC SSR Full Schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ─────────────────────────────────────────────
+//  CORE MODELS
+// ─────────────────────────────────────────────
+
+model University {
+  id                String   @id @default(uuid())
+  name              String
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  logoUrl           String?
+  website           String?
+  established       Int?
+  type              String?  // Public, Private, Deemed, Autonomous
+  affiliation       String?  // Affiliated university name
+  aisheCode         String?
+  ugcRecognition    String?
+  naacCycle         Int?     // 1, 2, 3, 4
+  naacGrade         String?  // Last obtained grade
+  totalPrograms     Int?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  users             User[]
+  departments       Department[]
+  accreditations    AccreditationRecord[]
+  evidences         Evidence[]
+  auditLogs         AuditLog[]
+
+  // Criterion I
+  bosMeetings       BosMeeting[]
+  newCourses        NewCourse[]
+  valueAddedCourses ValueAddedCourse[]
+  moocEnrollments   MOOCEnrollment[]
+  feedbackRecords   FeedbackRecord[]
+
+  // Criterion II
+  enrollmentRecords  EnrollmentRecord[]
+  remedialPrograms   RemedialProgram[]
+  mentoringData      MentoringData[]
+  fdpRecords         FDPRecord[]
+  teacherICTRecords  TeacherICTRecord[]
+  examRecords        ExamRecord[]
+  learningOutcomes   LearningOutcomeRecord[]
+
+  // Criterion III
+  researchGrants    ResearchGrant[]
+  researchProjects  ResearchProject[]
+  patents           Patent[]
+  startups          Startup[]
+  publications      Publication[]
+  extensionActivities ExtensionActivity[]
+  mous              MoU[]
+
+  // Criterion IV
+  physicalFacility  PhysicalFacility[]
+  libraryRecords    LibraryRecord[]
+  itInfrastructure  ITInfrastructure[]
+  maintenanceBudgets MaintenanceBudget[]
+
+  // Criterion V
+  scholarships      Scholarship[]
+  placements        PlacementRecord[]
+  competitiveExams  CompetitiveExamResult[]
+  studentActivities StudentActivity[]
+  alumniRecords     AlumniRecord[]
+
+  // Criterion VI
+  visionMissions    VisionMission[]
+  eGovernanceRecords EGovernanceRecord[]
+  adminCommittees   AdminCommittee[]
+  financialRecords  FinancialRecord[]
+  iqacRecords       IQACRecord[]
+
+  // Criterion VII
+  genderPrograms    GenderProgram[]
+  greenInitiatives  GreenInitiative[]
+  inclusionActivities InclusionActivity[]
+  bestPractices     BestPractice[]
+  distinctiveness   InstitutionalDistinctiveness[]
+
+  // Scores
+  naacScores        NaacScore[]
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  password     String
+  name         String
+  role         String     @default("REVIEWER") // SUPER_ADMIN, IQAC_COORDINATOR, DEPT_HEAD, FACULTY, REVIEWER
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  departmentId String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Department {
+  id           String     @id @default(uuid())
+  name         String
+  code         String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  faculty      Faculty[]
+  students     Student[]
+  courses      Course[]
+  programs     Program[]
+}
+
+model Program {
+  id               String     @id @default(uuid())
+  name             String
+  code             String
+  level            String     @default("UG") // UG, PG, PhD, Diploma
+  durationYears    Int        @default(4)
+  departmentId     String
+  department       Department @relation(fields: [departmentId], references: [id])
+  pos              PO[]
+  psos             PSO[]
+  enrollmentRecords EnrollmentRecord[]
+  learningOutcomes LearningOutcomeRecord[]
+  placements       PlacementRecord[]
+}
+
+model Faculty {
+  id              String     @id @default(uuid())
+  name            String
+  employeeId      String     @unique
+  designation     String
+  qualification   String
+  departmentId    String
+  department      Department @relation(fields: [departmentId], references: [id])
+  doj             DateTime?
+  hasPhD          Boolean    @default(false)
+  hasNetSetSlet   Boolean    @default(false)
+  experienceYears Float?
+  researchPapers  Int        @default(0)
+  patents         Int        @default(0)
+  awards          String?    // JSON array
+}
+
+model Student {
+  id           String     @id @default(uuid())
+  name         String
+  rollNumber   String     @unique
+  batch        String
+  category     String?    // GEN, SC, ST, OBC, EWS
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  cgpa         Float?
+}
+
+model Course {
+  id           String     @id @default(uuid())
+  name         String
+  code         String
+  credits      Int        @default(3)
+  semester     Int?
+  hasInternship Boolean   @default(false)
+  hasFieldProject Boolean @default(false)
+  crosscuttingIssue String? // EVS, GENDER, HUMAN_RIGHTS, NONE
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id])
+  cos          CO[]
+}
+
+model CO {
+  id         String   @id @default(uuid())
+  code       String
+  statement  String
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  attainment Float?   @default(0)
+}
+
+model PO {
+  id        String   @id @default(uuid())
+  code      String
+  statement String
+  programId String
+  program   Program  @relation(fields: [programId], references: [id])
+}
+
+model PSO {
+  id        String   @id @default(uuid())
+  code      String
+  statement String
+  programId String
+  program   Program  @relation(fields: [programId], references: [id])
+}
+
+model AccreditationRecord {
+  id           String     @id @default(uuid())
+  type         String     // NAAC, NBA, NIRF, AISHE
+  status       String     @default("DRAFT")
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  data         String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model Evidence {
+  id           String   @id @default(uuid())
+  name         String
+  fileUrl      String
+  fileType     String?  // PDF, IMAGE, WORD, EXCEL
+  criterion    String   // C1, C2, C3, C4, C5, C6, C7
+  metricCode   String?  // e.g., 1.1.1, 2.4.1
+  academicYear String?
+  expiryDate   DateTime?
+  uploaderName String?
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?
+  userName     String?
+  action       String   // CREATE, UPDATE, DELETE
+  entityType   String   // BosMeeting, Publication, etc.
+  entityId     String?
+  oldValue     String?  // JSON
+  newValue     String?  // JSON
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model NaacScore {
+  id           String   @id @default(uuid())
+  criterion    Int      // 1–7
+  subCriterion String?  // e.g., "1.1"
+  metricCode   String?  // e.g., "1.1.1"
+  score        Float    @default(0)
+  maxScore     Float    @default(0)
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  updatedAt    DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION I — CURRICULAR ASPECTS
+// ─────────────────────────────────────────────
+
+model BosMeeting {
+  id             String   @id @default(uuid())
+  programName    String
+  meetingDate    DateTime
+  minutesUrl     String?
+  hasIndustryFeedback Boolean @default(false)
+  academicYear   String
+  universityId   String
+  university     University @relation(fields: [universityId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model NewCourse {
+  id           String   @id @default(uuid())
+  courseCode   String
+  courseName   String
+  semester     Int?
+  credits      Int?
+  programName  String?
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model ValueAddedCourse {
+  id            String   @id @default(uuid())
+  name          String
+  type          String   // CERTIFICATE, VALUE_ADDED, ADDON
+  duration      String?  // e.g., "30 hours"
+  studentsEnrolled Int   @default(0)
+  academicYear  String
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model MOOCEnrollment {
+  id             String   @id @default(uuid())
+  platform       String   // Coursera, SWAYAM, NPTEL, edX, Udemy
+  courseName     String
+  creditsEarned  Float?
+  studentsEnrolled Int    @default(0)
+  academicYear   String
+  universityId   String
+  university     University @relation(fields: [universityId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model FeedbackRecord {
+  id                 String   @id @default(uuid())
+  stakeholderType    String   // STUDENT, TEACHER, EMPLOYER, ALUMNI
+  collectionMethod   String   // ONLINE, OFFLINE, BOTH
+  analysisReportUrl  String?
+  actionTakenReport  Boolean  @default(false)
+  actionReportUrl    String?
+  academicYear       String
+  universityId       String
+  university         University @relation(fields: [universityId], references: [id])
+  createdAt          DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION II — TEACHING-LEARNING
+// ─────────────────────────────────────────────
+
+model EnrollmentRecord {
+  id              String   @id @default(uuid())
+  programId       String
+  program         Program  @relation(fields: [programId], references: [id])
+  sanctionedIntake Int
+  enrolled        Int
+  enrolledSC      Int      @default(0)
+  enrolledST      Int      @default(0)
+  enrolledOBC     Int      @default(0)
+  enrolledEWS     Int      @default(0)
+  reservedIntake  Int?     // Actual reserved-category sanctioned seats; if null, computed as 49.5% of sanctionedIntake
+  enrolledGeneral Int      @default(0)
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model RemedialProgram {
+  id              String   @id @default(uuid())
+  type            String   // BRIDGE, REMEDIAL, ADVANCED
+  description     String?
+  beneficiaries   Int      @default(0)
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model MentoringData {
+  id              String   @id @default(uuid())
+  totalMentors    Int      @default(0)
+  totalStudents   Int      @default(0)
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model TeacherICTRecord {
+  id                   String   @id @default(uuid())
+  totalTeachers        Int      @default(0)
+  ictUsersCount        Int      @default(0)
+  studentCentricMethods String? // JSON array: ["FLIPPED_CLASS", "PBL", "COLLABORATIVE", "EXPERIENTIAL"]
+  lmsUsed              Boolean  @default(false)
+  lmsName              String?
+  recordedLectures     Boolean  @default(false)
+  smartBoardCount      Int      @default(0)
+  academicYear         String
+  universityId         String
+  university           University @relation(fields: [universityId], references: [id])
+  createdAt            DateTime @default(now())
+}
+
+model FDPRecord {
+  id           String   @id @default(uuid())
+  programName  String
+  type         String   // FDP, SEMINAR, CONFERENCE, WORKSHOP, TRAINING
+  facultyCount Int      @default(0)
+  duration     String?
+  organizer    String?
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model ExamRecord {
+  id                    String   @id @default(uuid())
+  totalCourses          Int      @default(0)
+  coursesWithCIA        Int      @default(0)
+  grievancesReceived    Int      @default(0)
+  grievancesResolved    Int      @default(0)
+  reEvaluationPolicy    Boolean  @default(false)
+  automationStatus      Boolean  @default(false)
+  avgDaysToResult       Int?     // Actual average days from exam to result declaration; if null, defaults to 18
+  automationDescription String?
+  transparencyMechanisms String? // text description
+  academicYear          String
+  universityId          String
+  university            University @relation(fields: [universityId], references: [id])
+  createdAt             DateTime @default(now())
+}
+
+model LearningOutcomeRecord {
+  id                     String   @id @default(uuid())
+  programId              String
+  program                Program  @relation(fields: [programId], references: [id])
+  posCosDefined          Boolean  @default(false)
+  attainmentMethod       String?  // Direct, Indirect, Both
+  passPercentage         Float?
+  placementPercentage    Float?
+  higherStudiesPercentage Float?
+  academicYear           String
+  universityId           String
+  university             University @relation(fields: [universityId], references: [id])
+  createdAt              DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION III — RESEARCH, INNOVATIONS
+// ─────────────────────────────────────────────
+
+model ResearchGrant {
+  id            String   @id @default(uuid())
+  agencyName    String
+  projectTitle  String?
+  amount        Float    // INR
+  status        String   // ONGOING, COMPLETED
+  sanctionYear  Int
+  academicYear  String
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model ResearchProject {
+  id             String   @id @default(uuid())
+  title          String
+  principalInvestigator String
+  coPrincipalInvestigator String?
+  fundingAgency  String?
+  fundingAmount  Float?
+  status         String   // ONGOING, COMPLETED
+  startYear      Int
+  endYear        Int?
+  universityId   String
+  university     University @relation(fields: [universityId], references: [id])
+  createdAt      DateTime @default(now())
+}
+
+model Patent {
+  id           String   @id @default(uuid())
+  patentNumber String?
+  title        String
+  inventors    String?
+  year         Int
+  status       String   // FILED, GRANTED, PUBLISHED
+  country      String   @default("India")
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Startup {
+  id           String   @id @default(uuid())
+  name         String
+  foundersNames String?
+  yearIncubated Int
+  sector       String?
+  fundingRaised Float?
+  status       String   @default("ACTIVE") // ACTIVE, GRADUATED, CLOSED
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model Publication {
+  id            String   @id @default(uuid())
+  type          String   // JOURNAL, BOOK, CHAPTER, CONFERENCE
+  title         String
+  authors       String
+  journalName   String?
+  year          Int
+  indexedIn     String?  // UGC_CARE, SCOPUS, WOS, NONE
+  isbnIssn      String?
+  doiUrl        String?
+  hIndex        Float?
+  citationCount Int?
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id])
+  createdAt     DateTime @default(now())
+}
+
+model ExtensionActivity {
+  id              String   @id @default(uuid())
+  name            String
+  type            String   // NSS, NCC, OUTREACH, COMMUNITY_SERVICE, NGO_COLLAB
+  description     String?
+  studentsParticipated Int @default(0)
+  partnerOrganization String?
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model MoU {
+  id              String   @id @default(uuid())
+  partnerName     String
+  partnerType     String   // INSTITUTION, INDUSTRY, NGO, GOVERNMENT
+  scope           String?  // Research, Internship, Exchange, Extension
+  isInternational Boolean  @default(false)
+  signedDate      DateTime?
+  expiryDate      DateTime?
+  activitiesCount Int      @default(0)
+  documentUrl     String?
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION IV — INFRASTRUCTURE
+// ─────────────────────────────────────────────
+
+model PhysicalFacility {
+  id                      String   @id @default(uuid())
+  campusAreaAcres         Float?
+  builtUpAreaSqM          Float?
+  sportsGround            Boolean  @default(false)
+  indoorSports            Boolean  @default(false)
+  gym                     Boolean  @default(false)
+  auditorium              Boolean  @default(false)
+  totalClassrooms         Int?
+  ictClassrooms           Int?
+  seminarHalls            Int?
+  labs                    Int?
+  rampAvailability        Boolean  @default(false)
+  liftAvailability        Boolean  @default(false)
+  disabledFriendlyToilets Boolean  @default(false)
+  brailleSignage          Boolean  @default(false)
+  academicYear            String
+  universityId            String
+  university              University @relation(fields: [universityId], references: [id])
+  createdAt               DateTime @default(now())
+}
+
+model LibraryRecord {
+  id                   String   @id @default(uuid())
+  volumes              Int      @default(0)
+  titles               Int      @default(0)
+  printJournals        Int      @default(0)
+  eJournals            Int      @default(0)
+  eBooks               Int      @default(0)
+  databases            String?  // JSON array: ["Scopus","EBSCO","JSTOR"]
+  automationSoftware   String?
+  userProgramsCount    Int      @default(0)
+  footfallPerDay       Int?
+  footfallPerMonth     Int?
+  nDelNet             Boolean  @default(false)
+  inflibnet           Boolean  @default(false)
+  academicYear         String
+  universityId         String
+  university           University @relation(fields: [universityId], references: [id])
+  createdAt            DateTime @default(now())
+}
+
+model ITInfrastructure {
+  id                     String   @id @default(uuid())
+  computersForStudents   Int      @default(0)
+  totalStudents          Int      @default(0)
+  internetBandwidthMbps  Int      @default(0)
+  wifiAvailable          Boolean  @default(false)
+  wifiCoveragePercent    Int?
+  licensedSoftwareCount  Int?
+  licensedSoftwareList   String?  // JSON
+  cybersecurityMeasures  String?  // text
+  erp                    Boolean  @default(false)
+  erpName                String?
+  academicYear           String
+  universityId           String
+  university             University @relation(fields: [universityId], references: [id])
+  createdAt              DateTime @default(now())
+}
+
+model MaintenanceBudget {
+  id                  String   @id @default(uuid())
+  annualBudgetINR     Float
+  amountUtilizedINR   Float
+  policyDocumentUrl   String?
+  academicYear        String
+  universityId        String
+  university          University @relation(fields: [universityId], references: [id])
+  createdAt           DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION V — STUDENT SUPPORT
+// ─────────────────────────────────────────────
+
+model Scholarship {
+  id           String   @id @default(uuid())
+  name         String
+  type         String   // GOVERNMENT, INSTITUTIONAL, MERIT, NEED_BASED
+  amountINR    Float
+  recipients   Int
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model PlacementRecord {
+  id           String   @id @default(uuid())
+  companyName  String
+  sector       String?  // IT, CORE, FINANCE, CONSULTING, etc.
+  studentsPlaced Int
+  packageLPA   Float?   // Lakhs per annum
+  programId    String?
+  program      Program? @relation(fields: [programId], references: [id])
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model CompetitiveExamResult {
+  id           String   @id @default(uuid())
+  examType     String   // UPSC, NET, GATE, CAT, GRE, GMAT, STATE_PSC
+  appearedCount Int     @default(0)
+  qualifiedCount Int    @default(0)
+  academicYear String
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model StudentActivity {
+  id              String   @id @default(uuid())
+  name            String
+  type            String   // SPORTS, CULTURAL, TECH_CHAPTER, NCC, NSS, OTHER
+  level           String?  // INSTITUTIONAL, STATE, NATIONAL, INTERNATIONAL
+  participants    Int      @default(0)
+  winners         Int      @default(0)
+  chapterName     String?  // e.g., IEEE Student Branch, CSI
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model AlumniRecord {
+  id                      String   @id @default(uuid())
+  associationRegistered   Boolean  @default(false)
+  meetsPerYear            Int      @default(0)
+  contributionAmountINR   Float    @default(0)
+  contributionDescription String?
+  distinguishedAlumni     String?  // JSON array of {name, designation, org}
+  academicYear            String
+  universityId            String
+  university              University @relation(fields: [universityId], references: [id])
+  createdAt               DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION VI — GOVERNANCE
+// ─────────────────────────────────────────────
+
+model VisionMission {
+  id                    String   @id @default(uuid())
+  visionStatement       String
+  missionStatement      String
+  strategicPlanUrl      String?
+  hasStrategicPlan      Boolean  @default(false)
+  decentralizationDesc  String?
+  academicYear          String
+  universityId          String
+  university            University @relation(fields: [universityId], references: [id])
+  createdAt             DateTime @default(now())
+}
+
+model EGovernanceRecord {
+  id                  String   @id @default(uuid())
+  area                String   // FINANCE, HR, ADMISSION, EXAM, LIBRARY
+  automationPercent   Int      @default(0)
+  softwareUsed        String?
+  isImplemented       Boolean  @default(false)
+  academicYear        String
+  universityId        String
+  university          University @relation(fields: [universityId], references: [id])
+  createdAt           DateTime @default(now())
+}
+
+model AdminCommittee {
+  id           String   @id @default(uuid())
+  name         String
+  role         String?
+  membersJson  String?  // JSON array of member names
+  meetingsPerYear Int   @default(0)
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+model FinancialRecord {
+  id                       String   @id @default(uuid())
+  totalIncomeINR           Float
+  grantIncomeINR           Float?
+  feeIncomeINR             Float?
+  otherIncomeINR           Float?
+  totalExpenditureINR      Float
+  academicExpenditureINR   Float
+  adminExpenditureINR      Float
+  internalAuditDone        Boolean  @default(false)
+  externalAuditDone        Boolean  @default(false)
+  academicYear             String
+  universityId             String
+  university               University @relation(fields: [universityId], references: [id])
+  createdAt                DateTime @default(now())
+}
+
+model IQACRecord {
+  id                   String   @id @default(uuid())
+  constitutionDate     DateTime?
+  meetingsPerYear      Int       @default(0)
+  meetingDatesJson     String?   // JSON array of ISO date strings
+  qualityInitiatives   Int       @default(0)
+  initiativesDesc      String?
+  nabaCertified        Boolean   @default(false)
+  isoCertified         Boolean   @default(false)
+  certificationDetails String?
+  nirfParticipated     Boolean   @default(false)
+  nirfRank             Int?
+  aqarSubmittedYears   String?   // JSON array of years
+  academicYear         String
+  universityId         String
+  university           University @relation(fields: [universityId], references: [id])
+  createdAt            DateTime @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  CRITERION VII — INSTITUTIONAL VALUES
+// ─────────────────────────────────────────────
+
+model GenderProgram {
+  id                      String   @id @default(uuid())
+  sensitizationCount      Int      @default(0)
+  safetyFacilities        Boolean  @default(false)
+  grievanceCellExists     Boolean  @default(false)
+  antiHarassmentCommittee Boolean  @default(false)
+  internalComplaintsCommittee Boolean @default(false)
+  womenHelpdesk           Boolean  @default(false)
+  descriptionJson         String?  // JSON array of program descriptions
+  academicYear            String
+  universityId            String
+  university              University @relation(fields: [universityId], references: [id])
+  createdAt               DateTime @default(now())
+}
+
+model GreenInitiative {
+  id                   String   @id @default(uuid())
+  solarPanels          Boolean  @default(false)
+  solarCapacityKw      Float?
+  rainwaterHarvesting  Boolean  @default(false)
+  composting           Boolean  @default(false)
+  paperlessOffice      Boolean  @default(false)
+  eWasteManagement     Boolean  @default(false)
+  ledLighting          Boolean  @default(false)
+  greenCampusCertified Boolean  @default(false)
+  energyConsumptionKwh Float?
+  waterConservationDesc String?
+  academicYear         String
+  universityId         String
+  university           University @relation(fields: [universityId], references: [id])
+  createdAt            DateTime @default(now())
+}
+
+model InclusionActivity {
+  id              String   @id @default(uuid())
+  type            String   // DIFFERENTLY_ABLED, MARGINALIZED, TRIBAL, LINGUISTIC_MINORITY
+  activityName    String
+  participants    Int      @default(0)
+  description     String?
+  academicYear    String
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model BestPractice {
+  id              String   @id @default(uuid())
+  title           String
+  objectives      String
+  context         String
+  practiceDesc    String
+  evidenceSuccess String
+  problemsNotes   String?
+  additionalNotes String?
+  practiceNumber  Int      @default(1) // 1 or 2
+  universityId    String
+  university      University @relation(fields: [universityId], references: [id])
+  createdAt       DateTime @default(now())
+}
+
+model InstitutionalDistinctiveness {
+  id               String   @id @default(uuid())
+  uniqueCharacters String
+  differentiators  String
+  evidence         String?
+  recognitions     String?
+  universityId     String
+  university       University @relation(fields: [universityId], references: [id])
+  createdAt        DateTime @default(now())
+}

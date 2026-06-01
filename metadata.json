@@ -1,0 +1,6 @@
+{
+  "name": "UACAS Enterprise On-Premise",
+  "description": "Enterprise-grade self-hosted system for NAAC, NBA, and NIRF compliance. Perpetual license model for single-university deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

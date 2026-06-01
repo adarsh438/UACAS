@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # 1. Express API Core Server & React Web App (Consolidated)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: uacas-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - DATABASE_URL=postgresql://uacas:password@db:5432/uacas
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - NODE_ENV=production
+    volumes:
+      # Mount physical local directory to persist uploaded PDFs/images in Evidence Vault
+      - ./uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # 2. Production Transactional Database (PostgreSQL 15)
+  db:
+    image: postgres:15-alpine
+    container_name: uacas-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=uacas
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=uacas
+    volumes:
+      # Persistent PostgreSQL data volume
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U uacas -d uacas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local
