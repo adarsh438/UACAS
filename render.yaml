@@ -1,0 +1,45 @@
+# render.yaml — Render Blueprint for UACAS Enterprise
+# https://render.com/docs/blueprint-spec
+#
+# Deploy both the web service and its PostgreSQL database in one click.
+# After first deploy, set APP_URL and PUBLIC_BASE_URL to your Render domain.
+
+services:
+  - type: web
+    name: uacas-enterprise
+    runtime: docker
+    plan: free          # upgrade to 'starter' or 'standard' for always-on
+
+    # Health check — Render uses this to verify the container started
+    healthCheckPath: /
+
+    envVars:
+      # Automatically wired to the Render PostgreSQL instance below
+      - key: DATABASE_URL
+        fromDatabase:
+          name: uacas-db
+          property: connectionString
+
+      # Render auto-generates a secure 256-bit random string
+      - key: JWT_SECRET
+        generateValue: true
+
+      # Set manually in the Render Dashboard → Environment after first deploy
+      - key: GEMINI_API_KEY
+        sync: false
+
+      # Set to your Render service URL, e.g. https://uacas-enterprise.onrender.com
+      - key: APP_URL
+        sync: false
+
+      - key: PUBLIC_BASE_URL
+        sync: false
+
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: uacas-db
+    plan: free          # Render free PostgreSQL (expires after 90 days; upgrade for production)
+    databaseName: uacas
+    user: uacas_user

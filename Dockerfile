@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 # Copy code and configuration files
-COPY tsconfig.json vite.config.ts index.html tailwind.config.js postcss.config.js ./
+COPY tsconfig.json vite.config.ts index.html ./
 COPY prisma ./prisma
 COPY src ./src
 COPY server.ts ./server.ts

@@ -6,7 +6,7 @@ echo "=== NAAC SSR On-Premise Application Booting ==="
 
 # 1. Dynamically rewrite Prisma provider from SQLite to PostgreSQL
 echo "Configuring Prisma for PostgreSQL production environment..."
-sed -i 's/provider[[:space:]]*=[[space:]]*"sqlite"/provider = "postgresql"/g' prisma/schema.prisma
+sed -i 's/provider[[:space:]]*=[[:space:]]*"sqlite"/provider = "postgresql"/g' prisma/schema.prisma
 sed -i 's|url[[:space:]]*=[[:space:]]*"file:.*"|url = env("DATABASE_URL")|g' prisma/schema.prisma
 
 # 2. Wait for PostgreSQL database container to be online and accepting connections
