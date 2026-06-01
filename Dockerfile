@@ -5,6 +5,7 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
+# --ignore-scripts prevents postinstall (prisma generate) from running before schema is present
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
@@ -14,7 +15,7 @@ COPY prisma ./prisma
 COPY src ./src
 COPY server.ts ./server.ts
 
-# Generate the initial client and build the production bundle
+# Generate Prisma client (schema is now present) and build the production bundle
 RUN npx prisma generate
 RUN npm run build
 
@@ -23,27 +24,33 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-# Install production-required runtime packages (like openssl for Prisma Postgres drivers, and bash/curl)
-RUN apk add --no-cache openssl bash curl
+# Install runtime packages:
+#   openssl        - required by Prisma PostgreSQL driver
+#   bash           - used by docker-entrypoint.sh
+#   curl           - general utility
+#   netcat-openbsd - provides `nc` used in entrypoint DB readiness check
+RUN apk add --no-cache openssl bash curl netcat-openbsd
 
 # Set production environment
 ENV NODE_ENV=production
 
-# Copy built package definitions and install only production dependencies
+# Install only production dependencies
+# --ignore-scripts prevents postinstall (prisma generate) before the schema is present;
+# the pre-built .prisma client is copied from the builder stage below
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev && npm cache clean --force
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy compiled production bundle from the builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Copy startup scripts
+# Copy startup script
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh
 
 # Expose Express application port
 EXPOSE 3000
 
-# Configure entrypoint to initialize database before booting
+# Configure entrypoint to initialise database before booting the app
 ENTRYPOINT ["/bin/bash", "/app/docker-entrypoint.sh"]
