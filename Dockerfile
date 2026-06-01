@@ -10,7 +10,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 # Copy code and configuration files
-COPY tsconfig.json vite.config.ts index.html ./
+COPY tsconfig.json vite.config.ts index.html firebase-applet-config.json ./
 COPY prisma ./prisma
 COPY src ./src
 COPY server.ts ./server.ts
