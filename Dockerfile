@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install build dependencies
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy code and configuration files
 COPY tsconfig.json vite.config.ts index.html ./
