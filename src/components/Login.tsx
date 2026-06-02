@@ -4,9 +4,16 @@ import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { School } from 'lucide-react';
 import { motion } from 'motion/react';
 
-export default function Login() {
+import React, { useState } from 'react';
+import { auth } from '../firebase';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { School, ShieldAlert, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
+
+export default function Login({ onDemoLogin }: { onDemoLogin: (role: string) => void }) {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [demoRole, setDemoRole] = useState('IQAC_COORDINATOR');
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -27,26 +34,29 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-slate-100"
+        className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8 border border-slate-100 space-y-6"
       >
-        <div className="flex justify-center mb-6">
+        <div className="flex justify-center">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30">
             <School className="w-8 h-8 text-white" />
           </div>
         </div>
-        <h1 className="text-2xl font-bold text-center text-slate-900 mb-2">UACAS Enterprise</h1>
-        <p className="text-center text-slate-500 mb-8">Sign in to access your accreditation portal</p>
+        <div className="text-center space-y-1">
+          <h1 className="text-2xl font-bold text-slate-900">UACAS Enterprise</h1>
+          <p className="text-slate-500 text-sm">Sign in to access your accreditation portal</p>
+        </div>
 
         {error && (
-          <div className="p-4 bg-red-50 text-red-600 text-sm rounded-xl mb-6 font-medium">
-            {error}
+          <div className="p-4 bg-red-50 text-red-600 text-xs rounded-xl font-medium border border-red-100 flex flex-col gap-1">
+            <span className="font-bold flex items-center gap-1.5"><ShieldAlert className="w-3.5 h-3.5" /> Firebase Auth Error</span>
+            <span className="opacity-90">{error}</span>
           </div>
         )}
 
         <button
           onClick={handleLogin}
           disabled={isLoading}
-          className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="w-full py-4 bg-slate-900 text-white rounded-xl font-bold text-sm tracking-wide hover:bg-slate-800 transition-colors flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer shadow-md"
         >
           {isLoading ? (
             <span className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />
@@ -75,6 +85,37 @@ export default function Login() {
             </>
           )}
         </button>
+
+        {/* Premium simulated/demo bypass options */}
+        <div className="relative flex py-2 items-center">
+          <div className="flex-grow border-t border-slate-100"></div>
+          <span className="flex-shrink mx-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Or Use Demo Mode</span>
+          <div className="flex-grow border-t border-slate-100"></div>
+        </div>
+
+        <div className="p-5 bg-blue-50/50 rounded-2xl border border-blue-100/50 space-y-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Select Demo Role Privilege</label>
+            <select
+              value={demoRole}
+              onChange={(e) => setDemoRole(e.target.value)}
+              className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
+              <option value="SUPER_ADMIN">Super Admin</option>
+              <option value="IQAC_COORDINATOR">IQAC Coordinator</option>
+              <option value="DEPT_HEAD">Department Head</option>
+              <option value="FACULTY">Faculty Member</option>
+              <option value="REVIEWER">Peer Reviewer</option>
+            </select>
+          </div>
+
+          <button
+            onClick={() => onDemoLogin(demoRole)}
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-blue-600/10 flex items-center justify-center gap-1.5 cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Simulate & Sign In as Demo
+          </button>
+        </div>
       </motion.div>
     </div>
   );

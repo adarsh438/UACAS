@@ -183,6 +183,7 @@ const StatCard = ({ label, value, trend, icon: Icon, suffix = "" }: any) => (
 
 export default function App() {
   const [user, loading] = useAuthState(auth);
+  const [mockUser, setMockUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeMockRole, setActiveMockRole] = useState<string>('IQAC_COORDINATOR');
   const [stats, setStats] = useState<StatData | null>(null);
@@ -197,6 +198,8 @@ export default function App() {
   const [university, setUniversity] = useState<any>(null);
   const [facultyList, setFacultyList] = useState<any[]>([]);
 
+  const activeUser = user || mockUser;
+
   // Synchronize mock token to the global window environment
   useEffect(() => {
     const matchedRole = ROLES.find(r => r.id === activeMockRole);
@@ -208,7 +211,7 @@ export default function App() {
   }, [activeMockRole]);
 
   useEffect(() => {
-    if (!user) return; // Only fetch if logged in
+    if (!activeUser) return; // Only fetch if logged in
     
     const matchedRole = ROLES.find(r => r.id === activeMockRole);
     const token = matchedRole ? matchedRole.token : 'mock-jwt-token';
@@ -228,13 +231,13 @@ export default function App() {
       .then(res => res.json())
       .then(setFacultyList)
       .catch(err => console.error(err));
-  }, [user, activeMockRole]);
+  }, [activeUser, activeMockRole]);
 
   const generateNarrative = async () => {
-    if (!user) return;
+    if (!activeUser) return;
     setIsGenerating(true);
     try {
-      const token = await user.getIdToken();
+      const token = await activeUser.getIdToken();
       const res = await fetch('/api/ai/narrative', {
         method: 'POST',
         headers: { 
@@ -253,9 +256,9 @@ export default function App() {
   };
 
   const downloadReport = async (format: 'pdf' | 'docx' | 'xlsx' | 'json' = 'pdf', year: string = '2024-25') => {
-    if (!user) return;
+    if (!activeUser) return;
     try {
-      const token = await user.getIdToken();
+      const token = await activeUser.getIdToken();
       const res = await fetch(`/api/reports/generate/${format}`, {
         method: 'POST',
         headers: { 
@@ -289,8 +292,19 @@ export default function App() {
     );
   }
 
-  if (!user) {
-    return <Login />;
+  if (!activeUser) {
+    return <Login onDemoLogin={(role) => {
+      const matchedRole = ROLES.find(r => r.id === role);
+      const matchedToken = matchedRole ? matchedRole.token : 'mock-jwt-token';
+      setMockUser({
+        uid: 'mock-user-id',
+        email: `${role.toLowerCase()}@university.edu`,
+        displayName: matchedRole?.name || 'Demo User',
+        photoURL: '',
+        getIdToken: async () => matchedToken
+      });
+      setActiveMockRole(role);
+    }} />;
   }
 
   return (
@@ -424,13 +438,13 @@ export default function App() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group" onClick={() => signOut(auth)} title="Sign Out">
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group" onClick={() => { signOut(auth); setMockUser(null); }} title="Sign Out">
               <div className="text-right">
-                <p className="text-sm font-semibold group-hover:text-red-500 transition-colors">{user.displayName || "Admin User"}</p>
+                <p className="text-sm font-semibold group-hover:text-red-500 transition-colors">{activeUser.displayName || "Admin User"}</p>
                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Sign Out</p>
               </div>
               <div className="w-10 h-10 bg-slate-200 rounded-full overflow-hidden border-2 border-white shadow-sm group-hover:border-red-100 transition-colors">
-                 <img src={user.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="Avatar" />
+                 <img src={activeUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeUser.email}`} alt="Avatar" />
               </div>
             </div>
           </div>
