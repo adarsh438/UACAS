@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
-import { School } from 'lucide-react';
-import { motion } from 'motion/react';
-
-import React, { useState } from 'react';
-import { auth } from '../firebase';
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { School, ShieldAlert, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+
 
 export default function Login({ onDemoLogin }: { onDemoLogin: (role: string) => void }) {
   const [error, setError] = useState<string | null>(null);
