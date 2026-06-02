@@ -17,10 +17,10 @@ fi
 echo "DATABASE_URL is set. Connecting to PostgreSQL..."
 
 # ── 3. TCP-level wait for the database port to be open ───────────────────────
-# Parse host and port from DATABASE_URL (handles postgresql:// and postgres://)
-DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*://[^@]+@([^:/]+).*|\1|')
-DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
-DB_PORT="${DB_PORT:-5432}"
+# Use node (guaranteed in image) to parse the URL — handles URLs with or
+# without an explicit port (Render's internalConnectionString omits :5432).
+DB_HOST=$(node -e "const u=new URL(process.env.DATABASE_URL); process.stdout.write(u.hostname)")
+DB_PORT=$(node -e "const u=new URL(process.env.DATABASE_URL); process.stdout.write(u.port||'5432')")
 
 echo "Waiting for TCP connection to $DB_HOST:$DB_PORT ..."
 TCP_RETRIES=30
