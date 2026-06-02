@@ -44,7 +44,9 @@ async function startServer() {
   app.use('/api', apiRouter);
 
   // --- Vite / Frontend Setup ---
-  if (process.env.NODE_ENV !== "production") {
+  // Default to production mode (serving static files) unless explicitly set to "development".
+  // This prevents starting the resource-intensive Vite dev server if NODE_ENV is missing on Render.
+  if (process.env.NODE_ENV === "development") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
