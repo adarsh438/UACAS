@@ -16,14 +16,30 @@ if [ -z "$DATABASE_URL" ]; then
 fi
 echo "DATABASE_URL is set. Connecting to PostgreSQL..."
 
-# ── 3. Generate the PostgreSQL Prisma client ─────────────────────────────────
-# The builder stage pre-generated a SQLite client; we need the PostgreSQL one.
-echo "Generating Prisma client for PostgreSQL..."
-npx prisma generate
+# ── 3. TCP-level wait for the database port to be open ───────────────────────
+# Parse host and port from DATABASE_URL (handles postgresql:// and postgres://)
+DB_HOST=$(echo "$DATABASE_URL" | sed -E 's|.*://[^@]+@([^:/]+).*|\1|')
+DB_PORT=$(echo "$DATABASE_URL" | sed -E 's|.*:([0-9]+)/.*|\1|')
+DB_PORT="${DB_PORT:-5432}"
 
-# ── 4. Push schema to the database (with retry for cold-start DB) ────────────
+echo "Waiting for TCP connection to $DB_HOST:$DB_PORT ..."
+TCP_RETRIES=30
+until nc -z -w 3 "$DB_HOST" "$DB_PORT" 2>/dev/null; do
+  TCP_RETRIES=$((TCP_RETRIES - 1))
+  if [ "$TCP_RETRIES" -le 0 ]; then
+    echo "ERROR: Database TCP port $DB_HOST:$DB_PORT never opened. Exiting."
+    exit 1
+  fi
+  echo "  TCP not open yet, retrying in 3s... ($TCP_RETRIES attempts left)"
+  sleep 3
+done
+echo "TCP connection to $DB_HOST:$DB_PORT is open."
+
+# ── 4. Push schema to the database ───────────────────────────────────────────
+# NOTE: prisma generate was already run in the Dockerfile builder stage and the
+# pre-built PostgreSQL client was copied into the image. No need to re-run it.
 echo "Pushing schema to database..."
-RETRIES=10
+RETRIES=20
 until npx prisma db push --skip-generate 2>&1; do
   RETRIES=$((RETRIES - 1))
   if [ "$RETRIES" -le 0 ]; then

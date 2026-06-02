@@ -11,14 +11,15 @@ services:
     plan: free          # upgrade to 'starter' or 'standard' for always-on
 
     # Health check — Render uses this to verify the container started
-    healthCheckPath: /
+    healthCheckPath: /health
 
     envVars:
-      # Automatically wired to the Render PostgreSQL instance below
+      # Use the INTERNAL connection string — only reachable within Render's
+      # private network; faster and avoids external SSL handshake overhead.
       - key: DATABASE_URL
         fromDatabase:
           name: uacas-db
-          property: connectionString
+          property: internalConnectionString
 
       # Render auto-generates a secure 256-bit random string
       - key: JWT_SECRET
@@ -41,5 +42,5 @@ services:
 databases:
   - name: uacas-db
     plan: free          # Render free PostgreSQL (expires after 90 days; upgrade for production)
-    databaseName: uacas
+    databaseName: uacas_db
     user: uacas_user

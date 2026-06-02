@@ -35,6 +35,11 @@ async function startServer() {
 
   app.use(morgan('combined', { stream: { write: (message: string) => logger.info(message.trim()) } }));
 
+  // --- Health Check (used by Render's health probe) ---
+  app.get('/health', (_req, res) => {
+    res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
   // --- API Routes ---
   app.use('/api', apiRouter);
 
