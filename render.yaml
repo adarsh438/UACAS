@@ -14,12 +14,12 @@ services:
     healthCheckPath: /health
 
     envVars:
-      # Use the INTERNAL connection string — only reachable within Render's
-      # private network; faster and avoids external SSL handshake overhead.
+      # Use the connection string — supports cross-region communication
+      # (e.g. database in Singapore, web app in Oregon/Ohio).
       - key: DATABASE_URL
         fromDatabase:
           name: uacas-db
-          property: internalConnectionString
+          property: connectionString
 
       # Render auto-generates a secure 256-bit random string
       - key: JWT_SECRET
