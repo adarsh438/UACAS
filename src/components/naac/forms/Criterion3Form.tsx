@@ -1,11 +1,8 @@
 // src/components/naac/forms/Criterion3Form.tsx — Research, Innovations & Extension
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, ExternalLink } from 'lucide-react';
-import { auth } from '../../../firebase';
-
 const api = async (url: string, method = 'GET', body?: any) => {
-  const token = await auth.currentUser?.getIdToken();
-  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return res.json();
 };
 

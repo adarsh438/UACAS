@@ -1,11 +1,8 @@
 // src/components/naac/forms/Criterion4Form.tsx — Infrastructure
 import React, { useState, useEffect } from 'react';
 import { Save, Building2, BookOpen, Wifi, Wrench } from 'lucide-react';
-import { auth } from '../../../firebase';
-
 const api = async (url: string, method = 'GET', body?: any) => {
-  const token = await auth.currentUser?.getIdToken();
-  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return res.json();
 };
 

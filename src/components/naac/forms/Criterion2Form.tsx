@@ -1,11 +1,8 @@
 // src/components/naac/forms/Criterion2Form.tsx — Teaching-Learning & Evaluation
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save } from 'lucide-react';
-import { auth } from '../../../firebase';
-
 async function api(url: string, method = 'GET', body?: any) {
-  const token = await auth.currentUser?.getIdToken();
-  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return res.json();
 }
 const Input = ({ label, id, ...p }: any) => (

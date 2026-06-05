@@ -10,7 +10,6 @@ import {
   BookOpen, Users, Microscope, Building2, GraduationCap, Settings, Leaf,
   Download, RefreshCw, Star
 } from 'lucide-react';
-import { auth } from '../../firebase';
 
 // ── Types ──────────────────────────────────────────────────
 interface MetricScore { code: string; label: string; score: number; maxScore: number; percentage: number; flag: string; value?: string; }
@@ -106,11 +105,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
   const fetchScores = async () => {
     setLoading(true);
     try {
-      const user = auth.currentUser;
-      const token = await user?.getIdToken();
-      const res = await fetch(`/api/naac/scores/${selectedYear}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await fetch(`/api/naac/scores/${selectedYear}`);
       const data = await res.json();
       setScoreData(data);
     } catch (e) {
@@ -500,11 +495,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                 <button 
                   onClick={async () => {
                     try {
-                      const user = auth.currentUser;
-                      const token = (window as any).activeMockToken || await user?.getIdToken();
-                      const res = await fetch('/api/imports/export/backup', {
-                        headers: { Authorization: `Bearer ${token}` }
-                      });
+                      const res = await fetch('/api/imports/export/backup');
                       if (!res.ok) throw new Error('Backup forbidden or failed');
                       const blob = await res.blob();
                       const url = window.URL.createObjectURL(blob);
@@ -534,11 +525,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                     <button 
                       key={cNum}
                       onClick={async () => {
-                        const user = auth.currentUser;
-                        const token = (window as any).activeMockToken || await user?.getIdToken();
-                        const res = await fetch(`/api/imports/templates/${cNum}`, {
-                          headers: { Authorization: `Bearer ${token}` }
-                        });
+                        const res = await fetch(`/api/imports/templates/${cNum}`);
                         const blob = await res.blob();
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
@@ -591,14 +578,11 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                       reader.onload = async (evt) => {
                         try {
                           const buffer = evt.target?.result;
-                          const user = auth.currentUser;
-                          const token = (window as any).activeMockToken || await user?.getIdToken();
 
                           const res = await fetch(`/api/imports/upload/${selectedImportCriterion}`, {
                             method: 'POST',
                             headers: {
-                              'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                              'Authorization': `Bearer ${token}`
+                              'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                             },
                             body: buffer as ArrayBuffer
                           });

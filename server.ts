@@ -10,6 +10,8 @@ import morgan from 'morgan';
 import { apiRouter } from './src/server/routes/api';
 import { errorHandler } from './src/server/middleware/error';
 import { logger } from './src/server/logger';
+import { ExpressAuth } from "@auth/express";
+import { authConfig } from "./src/server/config/auth";
 
 dotenv.config();
 
@@ -18,6 +20,7 @@ async function startServer() {
   const PORT = parseInt(process.env.PORT || '3000', 10);
 
   // --- Security & Middleware ---
+  app.set("trust proxy", true);
   app.use(helmet({
     contentSecurityPolicy: false, 
   }));
@@ -39,6 +42,9 @@ async function startServer() {
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // --- Auth.js Routes ---
+  app.use("/api/auth/*", ExpressAuth(authConfig));
 
   // --- API Routes ---
   app.use('/api', apiRouter);

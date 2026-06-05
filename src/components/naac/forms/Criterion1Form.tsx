@@ -2,13 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Plus, Trash2, Save, BookOpen, Upload, CheckSquare } from 'lucide-react';
-import { auth } from '../../../firebase';
-
 async function apiCall(url: string, method = 'GET', body?: any) {
-  const token = await auth.currentUser?.getIdToken();
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   return res.json();

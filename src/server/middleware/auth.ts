@@ -1,95 +1,98 @@
 import { Request, Response, NextFunction } from 'express';
-import admin from 'firebase-admin';
 import { logger } from '../logger';
-import firebaseConfig from '../../../firebase-applet-config.json' assert { type: 'json' };
 import { z } from 'zod';
-
-// Initialize Firebase Admin if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
-}
+import { getSession } from '@auth/express';
+import { authConfig } from '../config/auth';
 
 // Extend Express Request type
 declare global {
   namespace Express {
     interface Request {
-      user?: admin.auth.DecodedIdToken;
+      user?: any;
     }
   }
 }
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split('Bearer ')[1];
+
+    // Test bypass for offline cloud-independent local testing
+    if (token === 'mock-jwt-token' || token === 'mock-jwt-coordinator') {
+      req.user = {
+        uid: 'mock-user-coordinator',
+        email: 'coordinator@uacas.edu',
+        role: 'IQAC_COORDINATOR',
+        admin: true
+      } as any;
+      return next();
+    }
+
+    if (token === 'mock-jwt-superadmin') {
+      req.user = {
+        uid: 'mock-user-superadmin',
+        email: 'admin@uacas.edu',
+        role: 'SUPER_ADMIN',
+        admin: true
+      } as any;
+      return next();
+    }
+
+    if (token === 'mock-jwt-depthead') {
+      req.user = {
+        uid: 'mock-user-depthead',
+        email: 'depthead@uacas.edu',
+        role: 'DEPT_HEAD',
+        departmentId: 'dept-cs-456',
+        admin: false
+      } as any;
+      return next();
+    }
+
+    if (token === 'mock-jwt-faculty') {
+      req.user = {
+        uid: 'mock-user-faculty',
+        email: 'faculty@uacas.edu',
+        role: 'FACULTY',
+        employeeId: 'fac-999',
+        departmentId: 'dept-cs-456',
+        admin: false
+      } as any;
+      return next();
+    }
+
+    if (token === 'mock-jwt-reviewer') {
+      req.user = {
+        uid: 'mock-user-reviewer',
+        email: 'reviewer@uacas.edu',
+        role: 'REVIEWER',
+        admin: false
+      } as any;
+      return next();
+    }
   }
 
-  const token = authHeader.split('Bearer ')[1];
-
-  // Test bypass for offline cloud-independent local testing
-  if (token === 'mock-jwt-token' || token === 'mock-jwt-coordinator') {
-    req.user = {
-      uid: 'mock-user-coordinator',
-      email: 'coordinator@uacas.edu',
-      role: 'IQAC_COORDINATOR',
-      admin: true
-    } as any;
-    return next();
-  }
-
-  if (token === 'mock-jwt-superadmin') {
-    req.user = {
-      uid: 'mock-user-superadmin',
-      email: 'admin@uacas.edu',
-      role: 'SUPER_ADMIN',
-      admin: true
-    } as any;
-    return next();
-  }
-
-  if (token === 'mock-jwt-depthead') {
-    req.user = {
-      uid: 'mock-user-depthead',
-      email: 'depthead@uacas.edu',
-      role: 'DEPT_HEAD',
-      departmentId: 'dept-cs-456',
-      admin: false
-    } as any;
-    return next();
-  }
-
-  if (token === 'mock-jwt-faculty') {
-    req.user = {
-      uid: 'mock-user-faculty',
-      email: 'faculty@uacas.edu',
-      role: 'FACULTY',
-      employeeId: 'fac-999',
-      departmentId: 'dept-cs-456',
-      admin: false
-    } as any;
-    return next();
-  }
-
-  if (token === 'mock-jwt-reviewer') {
-    req.user = {
-      uid: 'mock-user-reviewer',
-      email: 'reviewer@uacas.edu',
-      role: 'REVIEWER',
-      admin: false
-    } as any;
-    return next();
-  }
-
+  // Auth.js session validation
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
-    req.user = decodedToken;
-    next();
+    const session = await getSession(req, authConfig);
+    if (session && session.user) {
+      req.user = {
+        uid: (session.user as any).id || session.user.email,
+        email: session.user.email,
+        role: (session.user as any).role || 'REVIEWER',
+        name: session.user.name,
+        departmentId: (session.user as any).departmentId,
+        employeeId: (session.user as any).employeeId,
+        admin: (session.user as any).role === 'SUPER_ADMIN' || (session.user as any).role === 'IQAC_COORDINATOR'
+      };
+      return next();
+    }
   } catch (error) {
-    logger.warn(`Auth failed: ${error}`);
-    return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    logger.warn(`Auth.js session verification failed: ${error}`);
   }
+
+  return res.status(401).json({ error: 'Unauthorized: Missing or invalid token/session' });
 };
 
 export const requireRole = (role: string) => {

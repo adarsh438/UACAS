@@ -1,11 +1,8 @@
 // src/components/naac/forms/Criterion5Form.tsx — Student Support & Progression
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Save, Users, TrendingUp, Award, Heart } from 'lucide-react';
-import { auth } from '../../../firebase';
-
 const api = async (url: string, method = 'GET', body?: any) => {
-  const token = await auth.currentUser?.getIdToken();
-  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: body ? JSON.stringify(body) : undefined });
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return res.json();
 };
 const Input = ({ label, id, ...p }: any) => (

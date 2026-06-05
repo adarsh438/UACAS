@@ -30,9 +30,7 @@ import EvidenceVault from './components/EvidenceVault';
 import Login from './components/Login';
 import NAACDashboard from './components/naac/NAACDashboard';
 import CriterionForm from './components/naac/CriterionForm';
-import { useAuthState } from 'react-firebase-hooks/auth';
-import { auth } from './firebase';
-import { signOut } from 'firebase/auth';
+// Authentication handled via Auth.js
 
 // --- Types ---
 interface StatData {
@@ -182,7 +180,8 @@ const StatCard = ({ label, value, trend, icon: Icon, suffix = "" }: any) => (
 );
 
 export default function App() {
-  const [user, loading] = useAuthState(auth);
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   const [mockUser, setMockUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [activeMockRole, setActiveMockRole] = useState<string>('IQAC_COORDINATOR');
@@ -198,7 +197,59 @@ export default function App() {
   const [university, setUniversity] = useState<any>(null);
   const [facultyList, setFacultyList] = useState<any[]>([]);
 
-  const activeUser = user || mockUser;
+  const activeUser = session?.user || mockUser;
+
+  const fetchSession = async () => {
+    try {
+      const res = await fetch('/api/auth/session');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.user) {
+          setSession(data);
+          if (data.user.role) {
+            setActiveMockRole(data.user.role);
+          }
+        } else {
+          setSession(null);
+        }
+      } else {
+        setSession(null);
+      }
+    } catch (err) {
+      console.error('Failed to fetch Auth.js session:', err);
+      setSession(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      setLoading(true);
+      const csrfToken = await fetch('/api/auth/csrf').then(res => res.json()).then(data => data.csrfToken);
+      const params = new URLSearchParams();
+      params.append('csrfToken', csrfToken);
+      
+      await fetch('/api/auth/signout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: params.toString(),
+      });
+      
+      setSession(null);
+      setMockUser(null);
+    } catch (err) {
+      console.error('Sign out failed', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSession();
+  }, []);
 
   // Synchronize mock token to the global window environment
   useEffect(() => {
@@ -237,12 +288,10 @@ export default function App() {
     if (!activeUser) return;
     setIsGenerating(true);
     try {
-      const token = await activeUser.getIdToken();
       const res = await fetch('/api/ai/narrative', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ criterion: aiCriterion, context: aiContext })
       });
@@ -258,12 +307,10 @@ export default function App() {
   const downloadReport = async (format: 'pdf' | 'docx' | 'xlsx' | 'json' = 'pdf', year: string = '2024-25') => {
     if (!activeUser) return;
     try {
-      const token = await activeUser.getIdToken();
       const res = await fetch(`/api/reports/generate/${format}`, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ year })
       });
@@ -293,18 +340,22 @@ export default function App() {
   }
 
   if (!activeUser) {
-    return <Login onDemoLogin={(role) => {
-      const matchedRole = ROLES.find(r => r.id === role);
-      const matchedToken = matchedRole ? matchedRole.token : 'mock-jwt-token';
-      setMockUser({
-        uid: 'mock-user-id',
-        email: `${role.toLowerCase()}@university.edu`,
-        displayName: matchedRole?.name || 'Demo User',
-        photoURL: '',
-        getIdToken: async () => matchedToken
-      });
-      setActiveMockRole(role);
-    }} />;
+    return <Login 
+      onDemoLogin={(role) => {
+        const matchedRole = ROLES.find(r => r.id === role);
+        const matchedToken = matchedRole ? matchedRole.token : 'mock-jwt-token';
+        setMockUser({
+          uid: 'mock-user-id',
+          email: `${role.toLowerCase()}@university.edu`,
+          name: matchedRole?.name || 'Demo User',
+          displayName: matchedRole?.name || 'Demo User',
+          image: '',
+          photoURL: ''
+        });
+        setActiveMockRole(role);
+      }}
+      onLoginSuccess={fetchSession}
+    />;
   }
 
   return (
@@ -438,13 +489,13 @@ export default function App() {
               <Bell className="w-5 h-5" />
               <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
-            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group" onClick={() => { signOut(auth); setMockUser(null); }} title="Sign Out">
+            <div className="flex items-center gap-3 pl-4 border-l border-slate-200 cursor-pointer group" onClick={handleSignOut} title="Sign Out">
               <div className="text-right">
-                <p className="text-sm font-semibold group-hover:text-red-500 transition-colors">{activeUser.displayName || "Admin User"}</p>
+                <p className="text-sm font-semibold group-hover:text-red-500 transition-colors">{activeUser.name || activeUser.displayName || "Admin User"}</p>
                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Sign Out</p>
               </div>
               <div className="w-10 h-10 bg-slate-200 rounded-full overflow-hidden border-2 border-white shadow-sm group-hover:border-red-100 transition-colors">
-                 <img src={activeUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeUser.email}`} alt="Avatar" />
+                 <img src={activeUser.image || activeUser.photoURL || `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeUser.email}`} alt="Avatar" />
               </div>
             </div>
           </div>
