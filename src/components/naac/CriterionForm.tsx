@@ -1,5 +1,5 @@
 // src/components/naac/CriterionForm.tsx — Shared wrapper for all criterion forms
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronRight, Save, CheckCircle2, Loader2 } from 'lucide-react';
 import Criterion1Form from './forms/Criterion1Form';
@@ -22,7 +22,7 @@ const CRITERION_META = [
 
 const YEARS = ['2020-21', '2021-22', '2022-23', '2023-24', '2024-25'];
 
-const CRITERION_FORMS: Record<number, React.FC<{ year: string }>> = {
+const CRITERION_FORMS: Record<number, React.FC<{ year: string, setHasUnsavedChanges?: (v: boolean) => void }>> = {
   1: Criterion1Form, 2: Criterion2Form, 3: Criterion3Form, 4: Criterion4Form,
   5: Criterion5Form, 6: Criterion6Form, 7: Criterion7Form,
 };
@@ -36,6 +36,18 @@ interface Props {
 export default function CriterionForm({ criterion, onBack, role }: Props) {
   const [selectedYear, setSelectedYear] = useState('2024-25');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const meta = CRITERION_META.find(m => m.id === criterion)!;
   const FormComponent = CRITERION_FORMS[criterion];
@@ -99,7 +111,7 @@ export default function CriterionForm({ criterion, onBack, role }: Props) {
           exit={{ opacity: 0, y: -10 }}
           className={role === 'REVIEWER' ? 'pointer-events-none opacity-80 select-none' : ''}
         >
-          {FormComponent && <FormComponent year={selectedYear} />}
+          {FormComponent && <FormComponent year={selectedYear} setHasUnsavedChanges={setHasUnsavedChanges} />}
         </motion.div>
       </AnimatePresence>
     </div>

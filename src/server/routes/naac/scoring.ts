@@ -268,7 +268,7 @@ export async function getNaacScoresInternal(year: string) {
   const greenRec = await prisma.greenInitiative.findFirst({ where: { universityId, academicYear: year } });
   const genderRec = await prisma.genderProgram.findFirst({ where: { universityId, academicYear: year } });
   const inclActs = await prisma.inclusionActivity.findMany({ where: { universityId, academicYear: year } });
-  const completeBP = bp.filter(p => p.title && p.objectives && p.context && p.practiceDesc && p.evidenceSuccess).length;
+  const completeBP = bp.filter(p => p.title && p.objectives && p.context && p.practiceDesc && p.evidenceSuccess && p.problemsNotes && p.additionalNotes).length;
   const c7 = computeCriterion7Score({
     genderProgramsCount: genderRec?.sensitizationCount ?? (hasNoData ? 0 : 8),
     grievanceCellExists: genderRec?.grievanceCellExists ?? (hasNoData ? false : true),

@@ -88,3 +88,16 @@ UACAS is designed for multi-tenancy. To add a new university:
 - **Firebase Auth Verification**: User ID tokens mapped to the `Authorization` header are strictly enforced via the `requireAuth` middleware for all data endpoints.
 - **Input Validation**: All POST/PUT endpoints enforce strict runtime schema validation using `zod`.
 - **Centralized Logging**: `winston` and `morgan` are active in production to stream standard structured logs to `stdout`.
+
+## 6. Render.com File Storage
+To prevent evidence files from being lost on every deployment, you must configure a persistent disk:
+1. In Render Dashboard, go to your Web Service settings.
+2. Under "Disks", add a new disk:
+   - Name: `uacas-uploads`
+   - Mount Path: `/app/uploads`
+   - Size: `10 GB`
+3. Under "Environment", add:
+   - Key: `UPLOAD_PATH`
+   - Value: `/app/uploads/evidence`
+
+If you do not configure a Render Disk, uploads will be saved to the ephemeral `./uploads/evidence` directory and will be permanently lost when the app is next deployed.

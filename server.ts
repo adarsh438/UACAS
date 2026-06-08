@@ -12,6 +12,7 @@ import { errorHandler } from './src/server/middleware/error';
 import { logger } from './src/server/logger';
 import { ExpressAuth } from "@auth/express";
 import { authConfig } from "./src/server/config/auth";
+import { customAuthRouter } from './src/server/routes/customAuth';
 
 dotenv.config();
 
@@ -21,10 +22,41 @@ async function startServer() {
 
   // --- Security & Middleware ---
   app.set("trust proxy", true);
+  const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
   app.use(helmet({
-    contentSecurityPolicy: false, 
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+        styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
+        imgSrc: ["'self'", "data:", publicBaseUrl],
+        connectSrc: ["'self'", "wss:", publicBaseUrl],
+      }
+    }
   }));
-  app.use(cors());
+
+  const allowedOrigins = process.env.CORS_ORIGINS 
+    ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
+    : [process.env.APP_URL || 'http://localhost:3000'];
+
+  if (process.env.NODE_ENV === 'development') {
+    allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
+  }
+
+  app.use(cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like server-to-server or curl requests)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      } else {
+        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+        return callback(new Error(msg), false);
+      }
+    },
+    credentials: true,
+  }));
   
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
@@ -32,6 +64,14 @@ async function startServer() {
     message: 'Too many requests'
   });
   app.use('/api', limiter);
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 5, // 5 requests
+    skipSuccessfulRequests: true, // Only count failed attempts
+    message: { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
+  });
+  app.use(['/api/auth/login', '/api/auth/callback/credentials'], authLimiter);
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -42,6 +82,9 @@ async function startServer() {
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  // --- Custom Auth Routes ---
+  app.use("/api/auth", customAuthRouter);
 
   // --- Auth.js Routes ---
   app.use("/api/auth/*", ExpressAuth(authConfig));

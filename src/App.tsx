@@ -30,6 +30,9 @@ import EvidenceVault from './components/EvidenceVault';
 import Login from './components/Login';
 import NAACDashboard from './components/naac/NAACDashboard';
 import CriterionForm from './components/naac/CriterionForm';
+import ForgotPassword from './components/ForgotPassword';
+import ResetPassword from './components/ResetPassword';
+import { Routes, Route, Navigate } from 'react-router-dom';
 // Authentication handled via Auth.js
 
 // --- Types ---
@@ -340,22 +343,31 @@ export default function App() {
   }
 
   if (!activeUser) {
-    return <Login 
-      onDemoLogin={(role) => {
-        const matchedRole = ROLES.find(r => r.id === role);
-        const matchedToken = matchedRole ? matchedRole.token : 'mock-jwt-token';
-        setMockUser({
-          uid: 'mock-user-id',
-          email: `${role.toLowerCase()}@university.edu`,
-          name: matchedRole?.name || 'Demo User',
-          displayName: matchedRole?.name || 'Demo User',
-          image: '',
-          photoURL: ''
-        });
-        setActiveMockRole(role);
-      }}
-      onLoginSuccess={fetchSession}
-    />;
+    return (
+      <Routes>
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/" element={
+          <Login 
+            onDemoLogin={(role) => {
+              const matchedRole = ROLES.find(r => r.id === role);
+              const matchedToken = matchedRole ? matchedRole.token : 'mock-jwt-token';
+              setMockUser({
+                uid: 'mock-user-id',
+                email: `${role.toLowerCase()}@university.edu`,
+                name: matchedRole?.name || 'Demo User',
+                displayName: matchedRole?.name || 'Demo User',
+                image: '',
+                photoURL: ''
+              });
+              setActiveMockRole(role);
+            }}
+            onLoginSuccess={fetchSession}
+          />
+        } />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
   }
 
   return (

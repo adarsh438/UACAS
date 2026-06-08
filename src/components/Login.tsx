@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { School, ShieldAlert, Sparkles, ArrowRight, Github, Mail, KeyRound, Chrome, AlertCircle, CheckCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 
@@ -271,7 +272,7 @@ export default function Login({ onDemoLogin, onLoginSuccess }: LoginProps) {
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Password</label>
-                  <a href="#" className="text-[10px] font-bold text-blue-400 hover:underline">Forgot password?</a>
+                  <Link to="/forgot-password" className="text-[10px] font-bold text-blue-400 hover:underline">Forgot password?</Link>
                 </div>
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />

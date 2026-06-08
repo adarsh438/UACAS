@@ -5,15 +5,15 @@ const api = async (url: string, method = 'GET', body?: any) => {
   const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
   return res.json();
 };
-const Input = ({ label, id, ...p }: any) => (
+const Input = ({ label, id, required, ...p }: any) => (
   <div className="space-y-1">
-    <label htmlFor={id} className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>
+    <label htmlFor={id} className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label} {required && <span className="text-red-500">*</span>}</label>
     <input id={id} {...p} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-300" />
   </div>
 );
-const Textarea = ({ label, id, rows = 3, ...p }: any) => (
+const Textarea = ({ label, id, rows = 3, required, ...p }: any) => (
   <div className="space-y-1">
-    <label htmlFor={id} className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label}</label>
+    <label htmlFor={id} className="text-xs font-bold text-slate-500 uppercase tracking-wider">{label} {required && <span className="text-red-500">*</span>}</label>
     <textarea id={id} rows={rows} {...p} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none" />
   </div>
 );
@@ -43,18 +43,23 @@ const BP_FIELDS = [
   { key: 'context', label: 'The Context (Why this practice?)', type: 'textarea' },
   { key: 'practiceDesc', label: 'The Practice (How is it done?)', type: 'textarea' },
   { key: 'evidenceSuccess', label: 'Evidence of Success', type: 'textarea' },
-  { key: 'problemsEncountered', label: 'Problems Encountered and Resources Required', type: 'textarea' },
-  { key: 'notes', label: 'Notes / Contact Details', type: 'textarea' },
+  { key: 'problemsNotes', label: 'Problems Encountered and Resources Required', type: 'textarea' },
+  { key: 'additionalNotes', label: 'Notes / Contact Details', type: 'textarea' },
 ];
 
-export default function Criterion7Form({ year }: { year: string }) {
+export default function Criterion7Form({ year, setHasUnsavedChanges }: { year: string, setHasUnsavedChanges?: (v: boolean) => void }) {
   const [gender, setGender] = useState<any>(null);
   const [green, setGreen] = useState<any>(null);
   const [bp1, setBp1] = useState<any>(null);
   const [bp2, setBp2] = useState<any>(null);
   const [distinctiveness, setDistinctiveness] = useState<any>(null);
   const [toast, setToast] = useState('');
+  const [isDirty, setIsDirty] = useState(false);
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(''), 2500); };
+
+  useEffect(() => {
+    if (setHasUnsavedChanges) setHasUnsavedChanges(isDirty);
+  }, [isDirty, setHasUnsavedChanges]);
 
   useEffect(() => {
     Promise.all([
@@ -64,42 +69,64 @@ export default function Criterion7Form({ year }: { year: string }) {
       setGender(Array.isArray(g) && g[0] ? g[0] : { sensitizationCount: 0, grievanceCellExists: false, antiHarassmentCommittee: false, femaleSafetyMeasures: '', genderNeutralToilets: false, internalComplaintsCommittee: false, academicYear: year });
       setGreen(Array.isArray(gr) && gr[0] ? gr[0] : { solarPanels: false, rainwaterHarvesting: false, composting: false, paperlessOffice: false, eWasteManagement: false, ledLighting: false, treeCount: 0, carbonNeutralPlan: false, energyAuditDone: false, academicYear: year });
       const bpsArr = Array.isArray(bps) ? bps : [];
-      const b1 = bpsArr.find((b: any) => b.practiceNumber === 1) || { practiceNumber: 1, title: '', objectives: '', context: '', practiceDesc: '', evidenceSuccess: '', problemsEncountered: '', notes: '' };
-      const b2 = bpsArr.find((b: any) => b.practiceNumber === 2) || { practiceNumber: 2, title: '', objectives: '', context: '', practiceDesc: '', evidenceSuccess: '', problemsEncountered: '', notes: '' };
+      const b1 = bpsArr.find((b: any) => b.practiceNumber === 1) || { practiceNumber: 1, title: '', objectives: '', context: '', practiceDesc: '', evidenceSuccess: '', problemsNotes: '', additionalNotes: '' };
+      const b2 = bpsArr.find((b: any) => b.practiceNumber === 2) || { practiceNumber: 2, title: '', objectives: '', context: '', practiceDesc: '', evidenceSuccess: '', problemsNotes: '', additionalNotes: '' };
       setBp1(b1);
       setBp2(b2);
       setDistinctiveness(Array.isArray(dist) && dist[0] ? dist[0] : { title: '', description: '', achievements: '', rankingsAwards: '' });
+      setIsDirty(false);
     });
   }, [year]);
 
-  const saveGender = async () => {
+  const saveGender = async (silent = false) => {
     const r = await api('/api/naac/c7/gender', 'POST', { ...gender, academicYear: year, sensitizationCount: +gender.sensitizationCount });
     if (r.id) setGender(r);
-    showToast('Gender equity data saved!');
+    setIsDirty(false);
+    if (!silent) showToast('Gender equity data saved!');
   };
 
-  const saveGreen = async () => {
+  const saveGreen = async (silent = false) => {
     const r = await api('/api/naac/c7/green', 'POST', { ...green, academicYear: year, treeCount: +green.treeCount });
     if (r.id) setGreen(r);
-    showToast('Green campus data saved!');
+    setIsDirty(false);
+    if (!silent) showToast('Green campus data saved!');
   };
 
   const saveBP = async (bp: any, setter: any) => {
+    const requiredFields = ['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess', 'problemsNotes', 'additionalNotes'];
+    const isComplete = requiredFields.every(k => bp[k] && bp[k].trim() !== '');
+    if (!isComplete) {
+      showToast('Error: All 7 fields are mandatory to save the Best Practice.');
+      return;
+    }
     const r = await api('/api/naac/c7/best-practices', 'POST', bp);
     if (r.id) setter(r);
     showToast(`Best Practice ${bp.practiceNumber} saved!`);
   };
 
-  const saveDistinctiveness = async () => {
+  const saveDistinctiveness = async (silent = false) => {
     const r = await api('/api/naac/c7/distinctiveness', 'POST', distinctiveness);
     if (r.id) setDistinctiveness(r);
-    showToast('Institutional distinctiveness saved!');
+    setIsDirty(false);
+    if (!silent) showToast('Institutional distinctiveness saved!');
   };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isDirty) {
+        if (gender) saveGender(true);
+        if (green) saveGreen(true);
+        if (distinctiveness) saveDistinctiveness(true);
+        showToast('Auto-saved changes');
+      }
+    }, 60000); // 60 seconds auto-save
+    return () => clearInterval(interval);
+  }, [isDirty, gender, green, distinctiveness, year]);
 
   const greenChecked = green ? Object.entries(green).filter(([k, v]) => GREEN_ITEMS.filter(i => !i.isInput).map(i => i.key).includes(k) && v === true).length : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onChange={() => setIsDirty(true)} onInput={() => setIsDirty(true)}>
       {toast && <div className="fixed top-6 right-6 z-50 px-5 py-3 rounded-xl bg-teal-600 text-white font-semibold text-sm shadow-xl">{toast}</div>}
 
       {/* 7.1.1 Gender Equity */}
@@ -189,18 +216,18 @@ export default function Criterion7Form({ year }: { year: string }) {
         <Card key={n} title={`7.2 — Best Practice ${n} (All 7 NAAC fields required)`} icon={Lightbulb} accent="#2dd4bf">
           {bp && (
             <div className="space-y-4">
-              <div className={`p-3 rounded-xl flex items-center gap-3 ${['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess'].every(k => bp[k]) ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
-                {['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess'].every(k => bp[k]) ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Star className="w-5 h-5 text-amber-500" />}
-                <p className={`text-sm font-semibold ${['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess'].every(k => bp[k]) ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess'].every(k => bp[k]) ? 'All required fields completed ✓' : 'Fill all 5 required fields to earn full marks'}
+              <div className={`p-3 rounded-xl flex items-center gap-3 ${['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess', 'problemsNotes', 'additionalNotes'].every(k => bp[k]) ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                {['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess', 'problemsNotes', 'additionalNotes'].every(k => bp[k]) ? <CheckCircle2 className="w-5 h-5 text-emerald-500" /> : <Star className="w-5 h-5 text-amber-500" />}
+                <p className={`text-sm font-semibold ${['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess', 'problemsNotes', 'additionalNotes'].every(k => bp[k]) ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {['title', 'objectives', 'context', 'practiceDesc', 'evidenceSuccess', 'problemsNotes', 'additionalNotes'].every(k => bp[k]) ? 'All required fields completed ✓' : 'Fill all 7 required fields to earn full marks'}
                 </p>
               </div>
               {BP_FIELDS.map(f => (
                 f.type === 'input' ? (
-                  <Input key={f.key} label={f.label} id={`bp${n}-${f.key}`} value={bp[f.key] || ''}
+                  <Input key={f.key} required label={f.label} id={`bp${n}-${f.key}`} value={bp[f.key] || ''}
                     onChange={(e: any) => setter((p: any) => ({ ...p, [f.key]: e.target.value }))} placeholder={`Best Practice ${n} ${f.label.toLowerCase()}...`} />
                 ) : (
-                  <Textarea key={f.key} label={f.label} id={`bp${n}-${f.key}`} rows={3} value={bp[f.key] || ''}
+                  <Textarea key={f.key} required label={f.label} id={`bp${n}-${f.key}`} rows={3} value={bp[f.key] || ''}
                     onChange={(e: any) => setter((p: any) => ({ ...p, [f.key]: e.target.value }))} placeholder={`Describe ${f.label.toLowerCase()}...`} />
                 )
               ))}

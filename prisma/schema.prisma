@@ -110,6 +110,7 @@ model User {
   updatedAt     DateTime   @updatedAt
   accounts      Account[]
   sessions      Session[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Department {
@@ -861,3 +862,21 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model LoginAttempt {
+  id        String   @id @default(cuid())
+  email     String
+  ipAddress String
+  success   Boolean
+  createdAt DateTime @default(now())
+  
+  @@index([email, createdAt])
+}

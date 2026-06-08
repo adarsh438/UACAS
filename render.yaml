@@ -36,8 +36,18 @@ services:
       - key: PUBLIC_BASE_URL
         sync: false
 
+      - key: UPLOAD_PATH
+        value: /app/uploads/evidence
+
       - key: NODE_ENV
         value: production
+
+    preDeployCommand: npm run db:deploy
+
+    disk:
+      name: uacas-uploads
+      mountPath: /app/uploads
+      sizeGB: 10
 
 databases:
   - name: uacas-db

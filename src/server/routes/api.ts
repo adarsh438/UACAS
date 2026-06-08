@@ -10,7 +10,7 @@ import { criteriaRouter } from './naac/criteria';
 import { scoringRouter } from './naac/scoring';
 import { importsRouter } from './imports';
 import { getNaacScoresInternal } from './naac/scoring';
-import { Document, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, WidthType, AlignmentType, TextRun, ImageRun, ExternalHyperlink } from 'docx';
+import { Document, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, WidthType, AlignmentType, TextRun, ImageRun, ExternalHyperlink, Header, Footer, PageNumber, TabStopPosition, TabStopType } from 'docx';
 import ExcelJS from 'exceljs';
 import fs from 'fs/promises';
 import path from 'path';
@@ -19,6 +19,11 @@ import { existsSync } from 'fs';
 export const apiRouter = Router();
 const prisma = new PrismaClient();
 const BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+const UPLOAD_DIR = process.env.UPLOAD_PATH ? path.resolve(process.env.UPLOAD_PATH) : path.resolve('./uploads/evidence');
+
+if (process.env.NODE_ENV === 'production' && !process.env.UPLOAD_PATH) {
+  logger.warn("UPLOAD_PATH is not set in production. Uploads are being saved to the ephemeral ./uploads/evidence directory and WILL BE LOST ON DEPLOYMENT.");
+}
 
 // Mount NAAC sub-routers
 apiRouter.use('/naac', criteriaRouter);
@@ -31,8 +36,30 @@ const ai = new GoogleGenAI({
 });
 
 // --- Health Check ---
-apiRouter.get('/health', (req, res) => {
-  res.json({ status: 'UP', timestamp: new Date().toISOString() });
+apiRouter.get('/health', async (req, res) => {
+  try {
+    // Test basic connection
+    await prisma.$queryRaw`SELECT 1`;
+    
+    // Verify migrations (reservedIntake and avgDaysToResult)
+    await prisma.enrollmentRecord.findFirst({ select: { reservedIntake: true } });
+    await prisma.examRecord.findFirst({ select: { avgDaysToResult: true } });
+
+    res.json({ 
+      status: 'UP', 
+      dbConnection: 'connected',
+      migrationsApplied: true,
+      timestamp: new Date().toISOString() 
+    });
+  } catch (error) {
+    logger.error(`Health check failed: ${error}`);
+    res.status(500).json({ 
+      status: 'DOWN', 
+      dbConnection: 'failed_or_pending_migrations',
+      error: String(error),
+      timestamp: new Date().toISOString() 
+    });
+  }
 });
 
 // --- System ---
@@ -244,6 +271,19 @@ apiRouter.post("/reports/generate/pdf", requireAuth, requireRole('IQAC_COORDINAT
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
+    let logoImage: any = null;
+    let logoDims: any = null;
+    try {
+      const logoPath = path.resolve('src/server/assets/radar_chart.png');
+      if (existsSync(logoPath)) {
+        const logoBuffer = await fs.readFile(logoPath);
+        logoImage = await pdfDoc.embedPng(logoBuffer);
+        logoDims = logoImage.scale(0.12);
+      }
+    } catch (imgErr) {
+      logger.error(`Could not load PDF logo: ${imgErr}`);
+    }
+
     const width = 595;
     const height = 842;
     const margin = 50;
@@ -365,6 +405,15 @@ apiRouter.post("/reports/generate/pdf", requireAuth, requireRole('IQAC_COORDINAT
     
     // Decorative top color bar
     page1.drawRectangle({ x: 0, y: height - 15, width, height: 15, color: rgb(0.14, 0.25, 0.46) });
+
+    if (logoImage && logoDims) {
+      page1.drawImage(logoImage, {
+        x: width - margin - logoDims.width,
+        y: height - 40 - logoDims.height,
+        width: logoDims.width,
+        height: logoDims.height,
+      });
+    }
 
     // Title
     page1.drawText("NAAC ACCREDITATION REPORT", { x: margin, y: height - 100, size: 24, font: boldFont, color: rgb(0.09, 0.16, 0.3) });
@@ -669,6 +718,39 @@ apiRouter.post("/reports/generate/docx", requireAuth, requireRole('IQAC_COORDINA
     const doc = new Document({
       sections: [{
         properties: {},
+        headers: {
+          default: new Header({
+            children: [
+              new Paragraph({
+                tabStops: [
+                  {
+                    type: TabStopType.RIGHT,
+                    position: TabStopPosition.MAX,
+                  },
+                ],
+                children: [
+                  new TextRun({ text: univName, bold: true, color: "64748b" }),
+                  new TextRun({ text: `\tNAAC SSR Report ${year}`, bold: true, color: "64748b" }),
+                ],
+              }),
+            ],
+          }),
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "Page ", color: "64748b" }),
+                  new TextRun({ children: [PageNumber.CURRENT], color: "64748b", bold: true }),
+                  new TextRun({ text: " of ", color: "64748b" }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], color: "64748b", bold: true }),
+                ],
+              }),
+            ],
+          }),
+        },
         children: [
           new Paragraph({
             text: univName.toUpperCase(),
@@ -1011,13 +1093,33 @@ apiRouter.post("/evidence/upload", requireAuth, express.raw({ type: ['applicatio
     const uid = univ?.id;
     if (!uid) return res.status(404).json({ error: "University not found" });
 
-    const fileName = (req.headers['x-file-name'] as string) || 'evidence.pdf';
+    let fileName = (req.headers['x-file-name'] as string) || 'evidence.pdf';
+    fileName = fileName.replace(/[\/\\]/g, '').replace(/\.\./g, '');
     const criterion = (req.headers['x-criterion'] as string) || 'C1';
     const metricCode = req.headers['x-metric-code'] as string || null;
     const academicYear = (req.headers['x-academic-year'] as string) || '2024-25';
     const uploaderName = (req.headers['x-uploader-name'] as string) || 'IQAC Coordinator';
 
-    const ext = path.extname(fileName) || '.pdf';
+    const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'];
+    const ext = path.extname(fileName).toLowerCase() || '.pdf';
+    
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      logger.warn(`Rejected file upload attempt (invalid extension) from IP ${req.ip}: ${fileName}`);
+      return res.status(400).json({ error: `File type '${ext}' is not allowed. Accepted: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, PPT, PPTX` });
+    }
+
+    const baseWithoutExt = path.basename(fileName, ext);
+    if (path.extname(baseWithoutExt) !== '') {
+      logger.warn(`Rejected file upload attempt (double extension) from IP ${req.ip}: ${fileName}`);
+      return res.status(400).json({ error: 'Double file extensions are not allowed' });
+    }
+
+    const contentType = req.headers['content-type'];
+    if (!contentType || (!contentType.includes('application/') && !contentType.includes('image/'))) {
+      logger.warn(`Rejected file upload attempt (invalid MIME) from IP ${req.ip}: ${contentType}`);
+      return res.status(400).json({ error: 'Invalid MIME type' });
+    }
+
     const fileType = ext.slice(1).toUpperCase();
 
     // Create database entry first to obtain a unique ID
@@ -1035,11 +1137,10 @@ apiRouter.post("/evidence/upload", requireAuth, express.raw({ type: ['applicatio
     });
 
     // Save the raw binary buffer directly to local storage
-    const uploadDir = path.resolve('./uploads/evidence');
-    await fs.mkdir(uploadDir, { recursive: true });
+    await fs.mkdir(UPLOAD_DIR, { recursive: true });
     
     const localFileName = `${dbRecord.id}${ext}`;
-    const filePath = path.join(uploadDir, localFileName);
+    const filePath = path.join(UPLOAD_DIR, localFileName);
     await fs.writeFile(filePath, req.body);
 
     // Update the database record with the unique serve url
@@ -1064,7 +1165,7 @@ apiRouter.get("/evidence/file/:id", requireAuth, async (req, res) => {
     if (!record) return res.status(404).json({ error: "Evidence record not found" });
 
     const ext = path.extname(record.name) || '.pdf';
-    const filePath = path.resolve('./uploads/evidence', `${record.id}${ext}`);
+    const filePath = path.join(UPLOAD_DIR, `${record.id}${ext}`);
     
     if (!existsSync(filePath)) {
       return res.status(404).json({ error: "Physical evidence file not found on local disk" });
@@ -1113,7 +1214,7 @@ apiRouter.delete("/evidence/:id", requireAuth, async (req, res) => {
 
     // Remove physical file from on-premise local disk
     const ext = path.extname(record.name) || '.pdf';
-    const filePath = path.resolve('./uploads/evidence', `${record.id}${ext}`);
+    const filePath = path.join(UPLOAD_DIR, `${record.id}${ext}`);
     if (existsSync(filePath)) {
       await fs.unlink(filePath);
     }

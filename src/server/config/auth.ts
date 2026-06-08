@@ -34,20 +34,27 @@ export const authConfig = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           return null;
         }
+        
+        const ip = req.headers?.get('x-forwarded-for') || req.headers?.get('x-real-ip') || 'unknown';
+        const emailStr = String(credentials.email);
+
         const user = await prisma.user.findUnique({
-          where: { email: String(credentials.email) }
+          where: { email: emailStr }
         });
         if (!user || !user.password) {
+          await prisma.loginAttempt.create({ data: { email: emailStr, ipAddress: ip, success: false } });
           return null;
         }
         const isValid = await bcrypt.compare(String(credentials.password), user.password);
         if (!isValid) {
+          await prisma.loginAttempt.create({ data: { email: emailStr, ipAddress: ip, success: false } });
           return null;
         }
+        await prisma.loginAttempt.create({ data: { email: emailStr, ipAddress: ip, success: true } });
         return {
           id: user.id,
           name: user.name,
@@ -92,5 +99,17 @@ export const authConfig = {
       return session;
     }
   },
-  secret: process.env.AUTH_SECRET || "uacas-enterprise-super-secret-auth-key-1234567890",
+  secret: (() => {
+    const secret = process.env.AUTH_SECRET;
+    if (process.env.NODE_ENV === "production") {
+      if (!secret) {
+        throw new Error("AUTH_SECRET environment variable must be set in production");
+      }
+      if (secret.length < 32) {
+        throw new Error("AUTH_SECRET must be at least 32 characters long for security");
+      }
+      return secret;
+    }
+    return secret || "uacas-enterprise-dev-only-secret-key-do-not-use-in-prod";
+  })(),
 };
