@@ -1,10 +1,15 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import Google from "@auth/express/providers/google";
-import GitHub from "@auth/express/providers/github";
-import Credentials from "@auth/express/providers/credentials";
-import Nodemailer from "@auth/express/providers/nodemailer";
+import _Google from "@auth/express/providers/google";
+import _GitHub from "@auth/express/providers/github";
+import _Credentials from "@auth/express/providers/credentials";
+import _Nodemailer from "@auth/express/providers/nodemailer";
+
+const Google = (_Google as any).default ?? _Google;
+const GitHub = (_GitHub as any).default ?? _GitHub;
+const Credentials = (_Credentials as any).default ?? _Credentials;
+const Nodemailer = (_Nodemailer as any).default ?? _Nodemailer;
 import { logger } from "../logger";
 
 const prisma = new PrismaClient();
