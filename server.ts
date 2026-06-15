@@ -103,9 +103,20 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Bulletproof path resolution for Render (handles if cwd is dist or project root)
+    const distPath = __dirname.endsWith('dist') ? __dirname : path.join(process.cwd(), 'dist');
+    
+    // Serve static files, but handle /assets explicitly to return 404 if missing
+    app.use('/assets', express.static(path.join(distPath, 'assets')));
+    app.use('/assets', (req, res) => { res.status(404).send('Not Found'); });
+    
+    app.use(express.static(distPath, { index: false }));
+    
+    // Serve index.html for all other routes, and prevent browser caching
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
