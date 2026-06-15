@@ -43,7 +43,7 @@ async function startServer() {
     allowedOrigins.push('http://localhost:5173', 'http://localhost:3000');
   }
 
-  app.use(cors({
+  app.use('/api', cors({
     origin: (origin, callback) => {
       // Allow requests with no origin, or 'null' origin (often sent by browser redirects)
       if (!origin || origin === 'null') return callback(null, true);
