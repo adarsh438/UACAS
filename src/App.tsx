@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import NBAModule from './components/NBAModule';
+import NBADashboard from './components/nba/NBADashboard';
 import OBETracking from './components/OBETracking';
 import ReportEngine from './components/ReportEngine';
 import EvidenceVault from './components/EvidenceVault';
@@ -32,6 +32,10 @@ import NAACDashboard from './components/naac/NAACDashboard';
 import CriterionForm from './components/naac/CriterionForm';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
+import AQARDashboard from './components/aqar/AQARDashboard';
+import LandingPage from './components/LandingPage';
+import NIRFDashboard from './components/nirf/NIRFDashboard';
+import SuperAdminPanel from './components/admin/SuperAdminPanel';
 import { Routes, Route, Navigate } from 'react-router-dom';
 // Authentication handled via Auth.js
 
@@ -347,7 +351,7 @@ export default function App() {
       <Routes>
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/" element={
+        <Route path="/login" element={
           <Login 
             onDemoLogin={(role) => {
               const matchedRole = ROLES.find(r => r.id === role);
@@ -364,6 +368,9 @@ export default function App() {
             }}
             onLoginSuccess={fetchSession}
           />
+        } />
+        <Route path="/" element={
+          <LandingPage onLogin={() => window.location.href = '/login'} />
         } />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -415,10 +422,22 @@ export default function App() {
             onClick={() => setActiveTab('nba')} 
           />
           <SidebarItem 
+            icon={FileText} 
+            label={isSidebarOpen ? "AQAR Module" : ""} 
+            active={activeTab === 'aqar'} 
+            onClick={() => setActiveTab('aqar')} 
+          />
+          <SidebarItem 
             icon={BookOpen} 
             label={isSidebarOpen ? "OBE Tracking" : ""} 
             active={activeTab === 'obe'} 
             onClick={() => setActiveTab('obe')} 
+          />
+          <SidebarItem 
+            icon={TrendingUp} 
+            label={isSidebarOpen ? "NIRF Ranking" : ""} 
+            active={activeTab === 'nirf'} 
+            onClick={() => setActiveTab('nirf')} 
           />
           <div className="pt-4 pb-2 px-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Automation</div>
           <SidebarItem 
@@ -445,6 +464,12 @@ export default function App() {
             label={isSidebarOpen ? "System Management" : ""} 
             active={activeTab === 'system'} 
             onClick={() => setActiveTab('system')} 
+          />
+          <SidebarItem 
+            icon={ShieldAlert} 
+            label={isSidebarOpen ? "Super Admin" : ""} 
+            active={activeTab === 'superadmin'} 
+            onClick={() => setActiveTab('superadmin')} 
           />
         </nav>
 
@@ -892,7 +917,7 @@ export default function App() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
               >
-                <NBAModule />
+                <NBADashboard />
               </motion.div>
             )}
 
@@ -926,8 +951,37 @@ export default function App() {
               </motion.div>
             )}
 
-            {/* Fallback for other tabs */}
-            {!['dashboard', 'naac', 'ai', 'profile', 'faculty', 'system', 'nba', 'obe', 'reports', 'evidence'].includes(activeTab) && (
+            {activeTab === 'aqar' && (
+              <motion.div 
+                key="aqar"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <AQARDashboard />
+              </motion.div>
+            )}
+
+            {activeTab === 'nirf' && (
+              <motion.div 
+                key="nirf"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <NIRFDashboard />
+              </motion.div>
+            )}
+
+            {activeTab === 'superadmin' && (
+              <motion.div 
+                key="superadmin"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <SuperAdminPanel />
+              </motion.div>
+            )}
+
+            {!['dashboard', 'naac', 'ai', 'profile', 'faculty', 'system', 'nba', 'obe', 'reports', 'evidence', 'aqar', 'nirf', 'superadmin'].includes(activeTab) && (
               <div className="min-h-[60vh] flex flex-col items-center justify-center text-slate-400">
                  <div className="p-8 bg-slate-100 rounded-full mb-6 text-slate-500">
                     <Settings className="w-12 h-12" />

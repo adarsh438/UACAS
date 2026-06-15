@@ -45,10 +45,11 @@ async function startServer() {
 
   app.use(cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like server-to-server or curl requests)
-      if (!origin) return callback(null, true);
+      // Allow requests with no origin, or 'null' origin (often sent by browser redirects)
+      if (!origin || origin === 'null') return callback(null, true);
       
-      if (allowedOrigins.includes(origin)) {
+      // In development or if explicitly allowed, accept the origin
+      if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
         const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
@@ -113,7 +114,7 @@ async function startServer() {
   app.use(errorHandler);
 
   app.listen(PORT, "0.0.0.0", () => {
-    logger.info(`UACAS Server running on http://0.0.0.0:${PORT}`);
+    logger.info(`UACAS Server running on http://localhost:${PORT}`);
   });
 }
 

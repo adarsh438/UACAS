@@ -9,6 +9,10 @@ import { z } from 'zod';
 import { criteriaRouter } from './naac/criteria';
 import { scoringRouter } from './naac/scoring';
 import { importsRouter } from './imports';
+import { aqarRouter } from './aqar';
+import { demoRequestRouter } from './demoRequest';
+import { nirfRouter } from './nirf';
+import { adminRouter } from './admin';
 import { getNaacScoresInternal } from './naac/scoring';
 import { Document, Packer, Paragraph, Table, TableRow, TableCell, HeadingLevel, WidthType, AlignmentType, TextRun, ImageRun, ExternalHyperlink, Header, Footer, PageNumber, TabStopPosition, TabStopType } from 'docx';
 import ExcelJS from 'exceljs';
@@ -29,6 +33,12 @@ if (process.env.NODE_ENV === 'production' && !process.env.UPLOAD_PATH) {
 apiRouter.use('/naac', criteriaRouter);
 apiRouter.use('/naac', scoringRouter);
 apiRouter.use('/imports', importsRouter);
+
+// Mount new module routers
+apiRouter.use('/aqar', aqarRouter);
+apiRouter.use('/demo-request', demoRequestRouter);
+apiRouter.use('/nirf', nirfRouter);
+apiRouter.use('/admin', adminRouter);
 
 const ai = new GoogleGenAI({ 
   apiKey: process.env.GEMINI_API_KEY || "",

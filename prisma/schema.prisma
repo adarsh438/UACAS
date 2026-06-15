@@ -93,6 +93,16 @@ model University {
 
   // Scores
   naacScores        NaacScore[]
+
+  // AQAR
+  aqarRecords       AqarRecord[]
+
+  // NIRF
+  nirfParameters    NirfParameter[]
+  nirfPerceptions   NirfPerception[]
+
+  // Multi-tenant
+  subscription      Subscription?
 }
 
 model User {
@@ -879,4 +889,170 @@ model LoginAttempt {
   createdAt DateTime @default(now())
   
   @@index([email, createdAt])
+}
+
+// ─────────────────────────────────────────────
+//  AQAR MODULE
+// ─────────────────────────────────────────────
+
+model AqarRecord {
+  id                        String   @id @default(uuid())
+  year                      String
+  status                    String   @default("DRAFT") // DRAFT, SUBMITTED, PENDING
+  submittedDate             DateTime?
+  institutionalAchievements String?
+  futurePlans               String?
+  iqacComposition           String?  // JSON array of members
+  iqacMeetingCount          Int      @default(0)
+  collaborationActivities   String?
+  externalQualityReviews    String?
+  universityId              String
+  university                University @relation(fields: [universityId], references: [id])
+  iqacActivities            AqarIqacActivity[]
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  @@unique([year, universityId])
+}
+
+model AqarIqacActivity {
+  id           String     @id @default(uuid())
+  activityDate DateTime
+  description  String
+  participants Int        @default(0)
+  outcome      String?
+  aqarId       String
+  aqar         AqarRecord @relation(fields: [aqarId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+}
+
+// ─────────────────────────────────────────────
+//  NIRF MODULE
+// ─────────────────────────────────────────────
+
+model NirfParameter {
+  id           String     @id @default(uuid())
+  year         String
+  tlrScore     Float      @default(0)
+  rpScore      Float      @default(0)
+  goScore      Float      @default(0)
+  oiScore      Float      @default(0)
+  prScore      Float      @default(0)
+  totalScore   Float      @default(0)
+  rank         Int?
+  universityId String
+  university   University @relation(fields: [universityId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([year, universityId])
+}
+
+model NirfPerception {
+  id            String     @id @default(uuid())
+  year          String
+  peerScore     Float      @default(0)
+  employerScore Float      @default(0)
+  universityId  String
+  university    University @relation(fields: [universityId], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@unique([year, universityId])
+}
+
+// ─────────────────────────────────────────────
+//  NBA MODULE (Enhanced)
+// ─────────────────────────────────────────────
+
+model NbaProgram {
+  id                String              @id @default(uuid())
+  programId         String
+  accreditationYear String
+  tier              Int                 @default(1)
+  peos              String?             // JSON array of PEO strings
+  status            String              @default("DRAFT")
+  universityId      String
+  courseOutcomes     NbaCourseOutcome[]
+  programOutcomes   NbaProgramOutcome[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+}
+
+model NbaCourseOutcome {
+  id           String           @id @default(uuid())
+  courseId      String
+  code         String
+  description  String
+  bloomsLevel  String?
+  nbaProgramId String
+  nbaProgram   NbaProgram       @relation(fields: [nbaProgramId], references: [id], onDelete: Cascade)
+  coPoMappings NbaCoPoMapping[]
+  attainments  NbaCoAttainment[]
+}
+
+model NbaProgramOutcome {
+  id           String           @id @default(uuid())
+  poNumber     Int
+  description  String
+  nbaProgramId String
+  nbaProgram   NbaProgram       @relation(fields: [nbaProgramId], references: [id], onDelete: Cascade)
+  coPoMappings NbaCoPoMapping[]
+  attainments  NbaPoAttainment[]
+}
+
+model NbaCoPoMapping {
+  id               String            @id @default(uuid())
+  coId             String
+  co               NbaCourseOutcome  @relation(fields: [coId], references: [id], onDelete: Cascade)
+  poId             String
+  po               NbaProgramOutcome @relation(fields: [poId], references: [id], onDelete: Cascade)
+  correlationLevel Int               @default(1)
+
+  @@unique([coId, poId])
+}
+
+model NbaCoAttainment {
+  id              String           @id @default(uuid())
+  coId            String
+  co              NbaCourseOutcome @relation(fields: [coId], references: [id], onDelete: Cascade)
+  year            String
+  directScore     Float            @default(0)
+  indirectScore   Float            @default(0)
+  finalAttainment Float            @default(0)
+}
+
+model NbaPoAttainment {
+  id              String            @id @default(uuid())
+  poId            String
+  po              NbaProgramOutcome @relation(fields: [poId], references: [id], onDelete: Cascade)
+  year            String
+  attainmentLevel Float             @default(0)
+  target          Float             @default(2.0)
+}
+
+// ─────────────────────────────────────────────
+//  MULTI-TENANT & SAAS
+// ─────────────────────────────────────────────
+
+model Subscription {
+  id           String     @id @default(uuid())
+  universityId String     @unique
+  university   University @relation(fields: [universityId], references: [id])
+  plan         String     @default("BASIC")
+  expiresAt    DateTime
+  status       String     @default("ACTIVE")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+}
+
+model DemoRequest {
+  id          String   @id @default(uuid())
+  name        String
+  institution String
+  email       String
+  phone       String?
+  message     String?
+  status      String   @default("NEW")
+  createdAt   DateTime @default(now())
 }

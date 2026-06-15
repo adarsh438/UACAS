@@ -16,6 +16,7 @@ const prisma = new PrismaClient();
 
 export const authConfig = {
   adapter: PrismaAdapter(prisma),
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID || "mock-google-client-id",
