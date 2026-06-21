@@ -63,26 +63,27 @@ const ROLES = [
   { id: 'REVIEWER', name: 'Peer Reviewer', token: 'mock-jwt-reviewer' }
 ];
 
-// Global fetch interceptor to inject simulated JWT header dynamically
+// Global fetch interceptor: injects mock token (simulation) OR real JWT (logged-in user)
 if (typeof window !== 'undefined' && !(window as any).__fetchIntercepted) {
   (window as any).__fetchIntercepted = true;
   const originalFetch = window.fetch;
   window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
-    const activeToken = (window as any).activeMockToken;
+    // Mock token takes precedence for simulation; fallback to real JWT
+    const activeToken = (window as any).activeMockToken || (window as any).activeRealToken;
     if (activeToken) {
       init = init || {};
       let headers: any = init.headers || {};
       if (headers instanceof Headers) {
-        headers.set('Authorization', `Bearer ${activeToken}`);
+        if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${activeToken}`);
       } else if (Array.isArray(headers)) {
-        const index = headers.findIndex(h => h[0].toLowerCase() === 'authorization');
+        const index = headers.findIndex((h: any) => h[0]?.toLowerCase() === 'authorization');
         if (index !== -1) {
           headers[index] = ['Authorization', `Bearer ${activeToken}`];
         } else {
           headers.push(['Authorization', `Bearer ${activeToken}`]);
         }
       } else {
-        headers['Authorization'] = `Bearer ${activeToken}`;
+        if (!headers['Authorization']) headers['Authorization'] = `Bearer ${activeToken}`;
       }
       init.headers = headers;
     }
@@ -208,11 +209,13 @@ export default function App() {
 
   const fetchSession = async () => {
     try {
-      const res = await fetch('/api/auth/session');
+      const res = await fetch('/api/auth/me', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         if (data && data.user) {
-          setSession(data);
+          // Wrap to match the { user: ... } shape expected by the rest of the app
+          setSession({ user: data.user });
+          // Store the token for the fetch interceptor (cookie-based auth is the primary)
           if (data.user.role) {
             setActiveMockRole(data.user.role);
           }
@@ -223,7 +226,7 @@ export default function App() {
         setSession(null);
       }
     } catch (err) {
-      console.error('Failed to fetch Auth.js session:', err);
+      console.error('Failed to fetch session:', err);
       setSession(null);
     } finally {
       setLoading(false);
@@ -233,22 +236,20 @@ export default function App() {
   const handleSignOut = async () => {
     try {
       setLoading(true);
-      const csrfToken = await fetch('/api/auth/csrf').then(res => res.json()).then(data => data.csrfToken);
-      const params = new URLSearchParams();
-      params.append('csrfToken', csrfToken);
-      
-      await fetch('/api/auth/signout', {
+      await fetch('/api/auth/logout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: params.toString(),
+        credentials: 'include',
       });
-      
+      // Clear in-memory tokens
+      (window as any).activeRealToken = null;
+      (window as any).activeMockToken = null;
       setSession(null);
       setMockUser(null);
     } catch (err) {
       console.error('Sign out failed', err);
+      // Even if the server call fails, clear local state
+      setSession(null);
+      setMockUser(null);
     } finally {
       setLoading(false);
     }

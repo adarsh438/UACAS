@@ -10,8 +10,6 @@ import morgan from 'morgan';
 import { apiRouter } from './src/server/routes/api';
 import { errorHandler } from './src/server/middleware/error';
 import { logger } from './src/server/logger';
-import { ExpressAuth } from "@auth/express";
-import { authConfig } from "./src/server/config/auth";
 import { customAuthRouter } from './src/server/routes/customAuth';
 
 dotenv.config();
@@ -28,14 +26,16 @@ async function startServer() {
       directives: {
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
-        styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com"],
-        imgSrc: ["'self'", "data:", publicBaseUrl],
+        styleSrc: ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "fonts.googleapis.com"],
+        fontSrc: ["'self'", "fonts.gstatic.com", "cdnjs.cloudflare.com"],
+        imgSrc: ["'self'", "data:", publicBaseUrl, "api.dicebear.com"],
         connectSrc: ["'self'", "wss:", publicBaseUrl],
+        formAction: ["'self'"],
       }
     }
   }));
 
-  const allowedOrigins = process.env.CORS_ORIGINS 
+  const allowedOrigins = process.env.CORS_ORIGINS
     ? process.env.CORS_ORIGINS.split(',').map(o => o.trim())
     : [process.env.APP_URL || 'http://localhost:3000'];
 
@@ -45,10 +45,9 @@ async function startServer() {
 
   app.use('/api', cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin, or 'null' origin (often sent by browser redirects)
+      // Allow requests with no origin (server-to-server, curl, etc.)
       if (!origin || origin === 'null') return callback(null, true);
-      
-      // In development or if explicitly allowed, accept the origin
+
       if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
@@ -58,21 +57,23 @@ async function startServer() {
     },
     credentials: true,
   }));
-  
+
+  // General API rate limiter
   const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, 
+    windowMs: 15 * 60 * 1000,
     max: 1000,
-    message: 'Too many requests'
+    message: 'Too many requests',
   });
   app.use('/api', limiter);
 
+  // Stricter rate limit on login to prevent brute force
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests
-    skipSuccessfulRequests: true, // Only count failed attempts
-    message: { error: 'Account locked due to too many failed attempts. Please try again in 15 minutes.' }
+    max: 20,                   // 20 attempts per window
+    skipSuccessfulRequests: true,
+    message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   });
-  app.use(['/api/auth/login', '/api/auth/callback/credentials'], authLimiter);
+  app.use('/api/auth/login', authLimiter);
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
@@ -84,18 +85,13 @@ async function startServer() {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // --- Custom Auth Routes ---
+  // --- Auth Routes (custom JWT — replaces Auth.js) ---
   app.use("/api/auth", customAuthRouter);
-
-  // --- Auth.js Routes ---
-  app.use("/api/auth/*", ExpressAuth(authConfig));
 
   // --- API Routes ---
   app.use('/api', apiRouter);
 
   // --- Vite / Frontend Setup ---
-  // Default to production mode (serving static files) unless explicitly set to "development".
-  // This prevents starting the resource-intensive Vite dev server if NODE_ENV is missing on Render.
   if (process.env.NODE_ENV === "development") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -105,13 +101,13 @@ async function startServer() {
   } else {
     // Bulletproof path resolution for Render (handles if cwd is dist or project root)
     const distPath = __dirname.endsWith('dist') ? __dirname : path.join(process.cwd(), 'dist');
-    
+
     // Serve static files, but handle /assets explicitly to return 404 if missing
     app.use('/assets', express.static(path.join(distPath, 'assets')));
     app.use('/assets', (req, res) => { res.status(404).send('Not Found'); });
-    
+
     app.use(express.static(distPath, { index: false }));
-    
+
     // Serve index.html for all other routes, and prevent browser caching
     app.get('*', (req, res) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
