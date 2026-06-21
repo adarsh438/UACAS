@@ -1,0 +1,27 @@
+fix(vercel): add vercel.json and fix SPA routing 404
+
+Fixes the 404 NOT_FOUND error on uacas.vercel.app/login.
+
+Root causes:
+1. No vercel.json existed — Vercel did not know this is a SPA,
+   so /login, /forgot-password etc. returned 404 (no static file)
+2. server.ts called app.listen() which is incompatible with
+   Vercel's serverless function model
+
+Changes:
+- vercel.json: Routes all requests through server.ts via
+  @vercel/node. Vercel compiles and runs it as a serverless
+  function, handling both API and SPA fallback routes.
+- server.ts: Extracted createApp() factory and added a default
+  export handler for Vercel serverless. app.listen() now only
+  runs when the file is executed directly (local/Render/Docker),
+  not when imported as a serverless module by Vercel.
+- .env.example: Added JWT_SECRET, documented that SQLite does
+  not work on Vercel (use Neon/Supabase/Railway Postgres instead)
+
+IMPORTANT — Vercel environment variables to set:
+  DATABASE_URL = postgresql://... (NOT file:./dev.db)
+  JWT_SECRET   = <random 64-char string>
+  NODE_ENV     = production
+  APP_URL      = https://uacas.vercel.app
+  PUBLIC_BASE_URL = https://uacas.vercel.app

@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "server.ts",
+      "src": "dist/server.cjs",
       "use": "@vercel/node",
       "config": {
         "maxLambdaSize": "50mb"
@@ -12,19 +12,19 @@
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/server.ts"
+      "dest": "/dist/server.cjs"
     },
     {
       "src": "/health",
-      "dest": "/server.ts"
+      "dest": "/dist/server.cjs"
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/server.ts"
+      "dest": "/dist/server.cjs"
     },
     {
       "src": "/(.*)",
-      "dest": "/server.ts"
+      "dest": "/dist/server.cjs"
     }
   ]
 }

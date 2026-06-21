@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import * as dotenv from "dotenv";
 import helmet from 'helmet';
 import cors from 'cors';
@@ -93,11 +92,8 @@ export async function createApp() {
 
   // --- Static Frontend (production/Vercel/Render) ---
   if (process.env.NODE_ENV === "development") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
+    // Development server is started via Vite plugin directly. We do not need to createViteServer here because it's handled by npm run dev script.
+    console.log("Running in development mode");
   } else {
     // Works whether cwd is the project root or the dist directory
     const distPath = __dirname.endsWith('dist') ? __dirname : path.join(process.cwd(), 'dist');

@@ -89,7 +89,7 @@ nirfRouter.get('/data/:year', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollmentRecord.findMany({ where: { universityId, academicYear: year } });
     const totalStudents = enrollment.reduce((s, e) => s + e.enrolled, 0);
     const totalSanctioned = enrollment.reduce((s, e) => s + e.sanctionedIntake, 0);
-    const femaleStudents = enrollment.reduce((s, e) => s + (e.enrolledFemale || 0), 0);
+    const femaleStudents = enrollment.reduce((s, e) => s + ((e as any).enrolledFemale || 0), 0);
     const reservedStudents = enrollment.reduce((s, e) => s + e.enrolledSC + e.enrolledST + e.enrolledOBC + e.enrolledEWS, 0);
 
     const facultyList = await prisma.faculty.findMany({ where: { department: { universityId } } });
@@ -134,7 +134,7 @@ nirfRouter.get('/data/:year', requireAuth, async (req, res) => {
       },
       rp: {
         publicationsCount: pubsForYear.length,
-        citationsCount: pubsForYear.reduce((s, p) => s + (p.citations || 0), 0),
+        citationsCount: pubsForYear.reduce((s, p) => s + ((p as any).citations || 0), 0),
         scopusPublications: scopusPubs.length,
         patentsPublished: patents.filter(p => p.status === 'FILED').length,
         patentsGranted: patents.filter(p => p.status === 'GRANTED').length,

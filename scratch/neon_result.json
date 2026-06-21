@@ -1,0 +1,4 @@
+{
+  "projectId": "hidden-dawn-91309034",
+  "connectionString": "postgresql://neondb_owner:npg_1dh2sFQbOXNI@ep-snowy-poetry-ao75hfdn.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"
+}
