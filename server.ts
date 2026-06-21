@@ -14,13 +14,17 @@ import { customAuthRouter } from './src/server/routes/customAuth';
 
 dotenv.config();
 
-async function startServer() {
+// ─────────────────────────────────────────────────────────────
+//  createApp — builds and returns the configured Express app.
+//  Exported so Vercel can import it as a serverless handler.
+//  Also called by startServer() for local/Docker/Render deployments.
+// ─────────────────────────────────────────────────────────────
+export async function createApp() {
   const app = express();
-  const PORT = parseInt(process.env.PORT || '3000', 10);
+  const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
 
   // --- Security & Middleware ---
   app.set("trust proxy", true);
-  const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -45,14 +49,11 @@ async function startServer() {
 
   app.use('/api', cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (server-to-server, curl, etc.)
       if (!origin || origin === 'null') return callback(null, true);
-
       if (process.env.NODE_ENV !== 'production' || allowedOrigins.includes(origin)) {
         return callback(null, true);
       } else {
-        const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-        return callback(new Error(msg), false);
+        return callback(new Error('CORS policy: Origin not allowed'), false);
       }
     },
     credentials: true,
@@ -66,10 +67,10 @@ async function startServer() {
   });
   app.use('/api', limiter);
 
-  // Stricter rate limit on login to prevent brute force
+  // Stricter rate limit on login
   const authLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20,                   // 20 attempts per window
+    windowMs: 15 * 60 * 1000,
+    max: 20,
     skipSuccessfulRequests: true,
     message: { error: 'Too many login attempts. Please try again in 15 minutes.' },
   });
@@ -77,21 +78,20 @@ async function startServer() {
 
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
-
   app.use(morgan('combined', { stream: { write: (message: string) => logger.info(message.trim()) } }));
 
-  // --- Health Check (used by Render's health probe) ---
+  // --- Health Check ---
   app.get('/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
 
-  // --- Auth Routes (custom JWT — replaces Auth.js) ---
+  // --- Auth Routes (custom JWT) ---
   app.use("/api/auth", customAuthRouter);
 
   // --- API Routes ---
   app.use('/api', apiRouter);
 
-  // --- Vite / Frontend Setup ---
+  // --- Static Frontend (production/Vercel/Render) ---
   if (process.env.NODE_ENV === "development") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -99,16 +99,14 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Bulletproof path resolution for Render (handles if cwd is dist or project root)
+    // Works whether cwd is the project root or the dist directory
     const distPath = __dirname.endsWith('dist') ? __dirname : path.join(process.cwd(), 'dist');
 
-    // Serve static files, but handle /assets explicitly to return 404 if missing
     app.use('/assets', express.static(path.join(distPath, 'assets')));
-    app.use('/assets', (req, res) => { res.status(404).send('Not Found'); });
-
+    app.use('/assets', (_req, res) => { res.status(404).send('Not Found'); });
     app.use(express.static(distPath, { index: false }));
 
-    // Serve index.html for all other routes, and prevent browser caching
+    // SPA fallback — serve index.html for all non-API routes
     app.get('*', (req, res) => {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
       res.setHeader('Pragma', 'no-cache');
@@ -117,12 +115,42 @@ async function startServer() {
     });
   }
 
-  // --- Centralized Error Handling ---
   app.use(errorHandler);
+  return app;
+}
 
+// ─────────────────────────────────────────────────────────────
+//  Vercel serverless export
+//  Vercel imports this file and calls the exported handler for
+//  every incoming request. No app.listen() needed.
+// ─────────────────────────────────────────────────────────────
+let _vercelApp: any = null;
+export default async function handler(req: any, res: any) {
+  if (!_vercelApp) {
+    _vercelApp = await createApp();
+  }
+  return _vercelApp(req, res);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  Local / Docker / Render startup
+//  Only runs when executed directly (not imported by Vercel).
+// ─────────────────────────────────────────────────────────────
+async function startServer() {
+  const app = await createApp();
+  const PORT = parseInt(process.env.PORT || '3000', 10);
   app.listen(PORT, "0.0.0.0", () => {
     logger.info(`UACAS Server running on http://localhost:${PORT}`);
   });
 }
 
-startServer();
+// Run only when this file is the entry point (local/Render/Docker)
+// In Vercel, the file is imported — not run directly — so this is skipped.
+const isDirectRun = process.argv[1] && (
+  process.argv[1].endsWith('server.ts') ||
+  process.argv[1].endsWith('server.cjs') ||
+  process.argv[1].endsWith('server.js')
+);
+if (isDirectRun) {
+  startServer();
+}
