@@ -22,7 +22,7 @@ import { existsSync } from 'fs';
 
 export const apiRouter = Router();
 const prisma = new PrismaClient();
-const BASE_URL = process.env.PUBLIC_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.PUBLIC_BASE_URL || process.env.APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 const UPLOAD_DIR = process.env.UPLOAD_PATH ? path.resolve(process.env.UPLOAD_PATH) : path.resolve('./uploads/evidence');
 
 if (process.env.NODE_ENV === 'production' && !process.env.UPLOAD_PATH) {
@@ -83,15 +83,153 @@ apiRouter.get("/system/license", (req, res) => {
   });
 });
 
-apiRouter.post("/system/backup", async (req, res) => {
+apiRouter.get("/system/backup", requireAuth, async (req, res) => {
   try {
+    const user = (req as any).user;
+    if (user.role !== 'SUPER_ADMIN' && user.role !== 'IQAC_COORDINATOR') {
+      return res.status(403).json({ error: "Only admins can export full backups." });
+    }
+
+    const univId = user.universityId;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `uacas_backup_${timestamp}.sql`;
-    logger.info(`Backup initiated: ${filename}`);
-    res.json({ message: "Backup initiated successfully", filename });
+    const workbook = new ExcelJS.Workbook();
+    
+    // Add multiple sheets for key models
+    
+    // 1. Departments
+    const depts = await prisma.department.findMany({ where: { universityId: univId } });
+    const deptSheet = workbook.addWorksheet('Departments');
+    deptSheet.columns = [{ header: 'ID', key: 'id' }, { header: 'Name', key: 'name' }, { header: 'Code', key: 'code' }];
+    depts.forEach(d => deptSheet.addRow(d));
+
+    // 2. Programs
+    const programs = await prisma.program.findMany({ 
+      where: { department: { universityId: univId } },
+      include: { department: true } 
+    });
+    const progSheet = workbook.addWorksheet('Programs');
+    progSheet.columns = [{ header: 'Code', key: 'code' }, { header: 'Name', key: 'name' }, { header: 'Level', key: 'level' }, { header: 'Dept', key: 'dept' }];
+    programs.forEach(p => progSheet.addRow({ ...p, dept: p.department.name }));
+
+    // 3. Faculty
+    const faculty = await prisma.faculty.findMany({ 
+      where: { department: { universityId: univId } },
+      include: { department: true }
+    });
+    const facSheet = workbook.addWorksheet('Faculty');
+    facSheet.columns = [{ header: 'Emp ID', key: 'employeeId' }, { header: 'Name', key: 'name' }, { header: 'Designation', key: 'designation' }, { header: 'Dept', key: 'dept' }, { header: 'PhD', key: 'hasPhD' }];
+    faculty.forEach(f => facSheet.addRow({ ...f, dept: f.department.name }));
+
+    // 4. Evidence
+    const evidence = await prisma.evidence.findMany({ where: { universityId: univId } });
+    const evSheet = workbook.addWorksheet('Evidence Vault');
+    evSheet.columns = [{ header: 'Name', key: 'name' }, { header: 'Criterion', key: 'criterion' }, { header: 'Metric', key: 'metricCode' }, { header: 'Year', key: 'academicYear' }, { header: 'Date', key: 'createdAt' }];
+    evidence.forEach(e => evSheet.addRow(e));
+
+    // 5. Audit Logs
+    const audits = await prisma.auditLog.findMany({ where: { universityId: univId }, orderBy: { createdAt: 'desc' }, take: 500 });
+    const auditSheet = workbook.addWorksheet('Audit Logs');
+    auditSheet.columns = [{ header: 'Date', key: 'createdAt' }, { header: 'User', key: 'userName' }, { header: 'Action', key: 'action' }, { header: 'Entity', key: 'entityType' }];
+    audits.forEach(a => auditSheet.addRow(a));
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="UACAS_Backup_${timestamp}.xlsx"`);
+    
+    await workbook.xlsx.write(res);
+    res.end();
   } catch (e) {
     logger.error(`Backup failed: ${e}`);
     res.status(500).json({ error: "Backup failed" });
+  }
+});
+
+// --- First Time Setup Wizard ---
+apiRouter.post("/setup/complete", requireAuth, async (req, res) => {
+  try {
+    const { institution, academicYears, activeYear, departments, teamMembers } = req.body;
+    const user = (req as any).user;
+    if (!user) return res.status(401).json({ error: "Not authenticated" });
+
+    const univ = await prisma.university.findFirst({ where: { id: user.universityId } });
+    if (!univ) return res.status(404).json({ error: "University not found" });
+
+    // Update university profile
+    await prisma.university.update({
+      where: { id: univ.id },
+      data: {
+        name: institution.name || univ.name,
+        aisheCode: institution.aisheCode || univ.aisheCode,
+        naacId: institution.naacId || null,
+        type: institution.type || univ.type,
+        address: institution.address || univ.address,
+        city: institution.city || univ.city,
+        state: institution.state || univ.state,
+        zipCode: institution.zipCode || univ.zipCode,
+        website: institution.website || univ.website,
+        contactEmail: institution.contactEmail || null,
+        contactPhone: institution.contactPhone || null,
+        setupCompleted: true,
+      }
+    });
+
+    // Create departments and programs
+    if (departments && Array.isArray(departments)) {
+      for (const dept of departments) {
+        const createdDept = await prisma.department.create({
+          data: {
+            name: dept.name,
+            code: dept.code || dept.name.substring(0, 4).toUpperCase(),
+            universityId: univ.id,
+          }
+        });
+        if (dept.programs && Array.isArray(dept.programs)) {
+          for (const prog of dept.programs) {
+            if (prog.name) {
+              await prisma.program.create({
+                data: {
+                  name: prog.name,
+                  code: prog.name.substring(0, 6).toUpperCase().replace(/\s/g, ''),
+                  level: prog.level || 'UG',
+                  durationYears: prog.level === 'PhD' ? 3 : prog.level === 'PG' ? 2 : 4,
+                  departmentId: createdDept.id,
+                }
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // Create team member accounts (if any)
+    if (teamMembers && Array.isArray(teamMembers)) {
+      const bcrypt = await import('bcryptjs');
+      for (const member of teamMembers) {
+        if (member.email && member.name) {
+          const existingUser = await prisma.user.findUnique({ where: { email: member.email.trim().toLowerCase() } });
+          if (!existingUser) {
+            const tempPassword = 'Welcome@' + Math.random().toString(36).slice(2, 8);
+            const hashed = await bcrypt.hash(tempPassword, 12);
+            await prisma.user.create({
+              data: {
+                email: member.email.trim().toLowerCase(),
+                name: member.name,
+                password: hashed,
+                role: member.role || 'DEPT_HEAD',
+                universityId: univ.id,
+                mustChangePassword: true,
+              }
+            });
+            logger.info(`Created team member account: ${member.email} with role ${member.role}. Temp password: ${tempPassword}`);
+          }
+        }
+      }
+    }
+
+    logger.info(`Setup completed for university: ${institution.name}`);
+    res.json({ success: true, message: 'Setup completed successfully' });
+  } catch (e) {
+    logger.error(`Setup completion failed: ${e}`);
+    res.status(500).json({ error: "Setup failed. Please try again." });
   }
 });
 
@@ -191,6 +329,17 @@ const narrativeSchema = z.object({
 
 apiRouter.post("/ai/narrative", requireAuth, validate(narrativeSchema), async (req, res) => {
   const { criterion, context } = req.body;
+  const geminiApiKey = process.env.GEMINI_API_KEY;
+
+  // Graceful degradation when key is missing or invalid
+  if (!geminiApiKey || geminiApiKey.trim() === '' || geminiApiKey.includes('mock')) {
+    return res.status(503).json({
+      success: false,
+      error: 'AI Narratives temporarily disabled',
+      details: 'Google Gemini API is not configured on the host server. Please verify the GEMINI_API_KEY environment variable is present.'
+    });
+  }
+
   try {
     const result = await ai.models.generateContent({
       model: "gemini-2.5-flash",
@@ -200,9 +349,13 @@ apiRouter.post("/ai/narrative", requireAuth, validate(narrativeSchema), async (r
       }
     });
     res.json({ narrative: result.text });
-  } catch (error) {
-    logger.error(`AI generation failed: ${error}`);
-    res.status(500).json({ error: "AI generation failed" });
+  } catch (error: any) {
+    logger.error(`Gemini Service Failure: ${error}`);
+    res.status(500).json({
+      success: false,
+      error: 'AI text generation failed',
+      details: error.message || 'Unknown upstream integration error.'
+    });
   }
 });
 
@@ -1132,12 +1285,13 @@ apiRouter.post("/evidence/upload", requireAuth, express.raw({ type: ['applicatio
 
     const fileType = ext.slice(1).toUpperCase();
 
-    // Create database entry first to obtain a unique ID
+    // Create database entry with the raw binary data included
     const dbRecord = await prisma.evidence.create({
       data: {
         name: fileName,
         fileUrl: '', // updated dynamically below
         fileType,
+        fileData: Buffer.from(req.body),
         criterion,
         metricCode,
         academicYear,
@@ -1145,13 +1299,6 @@ apiRouter.post("/evidence/upload", requireAuth, express.raw({ type: ['applicatio
         universityId: uid
       }
     });
-
-    // Save the raw binary buffer directly to local storage
-    await fs.mkdir(UPLOAD_DIR, { recursive: true });
-    
-    const localFileName = `${dbRecord.id}${ext}`;
-    const filePath = path.join(UPLOAD_DIR, localFileName);
-    await fs.writeFile(filePath, req.body);
 
     // Update the database record with the unique serve url
     const fileUrl = `/api/evidence/file/${dbRecord.id}`;
@@ -1168,23 +1315,39 @@ apiRouter.post("/evidence/upload", requireAuth, express.raw({ type: ['applicatio
 });
 
 // --- Serve Uploaded File ---
-apiRouter.get("/evidence/file/:id", requireAuth, async (req, res) => {
+apiRouter.get("/evidence/file/:id", async (req, res) => {
   try {
-    const { id } = req.params;
-    const record = await prisma.evidence.findUnique({ where: { id } });
-    if (!record) return res.status(404).json({ error: "Evidence record not found" });
+    const evidence = await prisma.evidence.findUnique({
+      where: { id: req.params.id }
+    });
 
-    const ext = path.extname(record.name) || '.pdf';
-    const filePath = path.join(UPLOAD_DIR, `${record.id}${ext}`);
-    
-    if (!existsSync(filePath)) {
-      return res.status(404).json({ error: "Physical evidence file not found on local disk" });
+    if (!evidence) {
+      return res.status(404).send('Evidence not found');
     }
 
-    res.sendFile(filePath);
+    if (evidence.fileData) {
+      // Serve directly from database buffer
+      const ext = path.extname(evidence.name).toLowerCase();
+      let contentType = 'application/octet-stream';
+      if (ext === '.pdf') contentType = 'application/pdf';
+      else if (ext === '.jpg' || ext === '.jpeg') contentType = 'image/jpeg';
+      else if (ext === '.png') contentType = 'image/png';
+      else if (ext === '.doc' || ext === '.docx') contentType = 'application/msword';
+      else if (ext === '.xls' || ext === '.xlsx') contentType = 'application/vnd.ms-excel';
+      
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${evidence.name}"`);
+      return res.send(evidence.fileData);
+    } else {
+      // Fallback for older files stored on disk (if any)
+      const ext = path.extname(evidence.name) || '.pdf';
+      const localFileName = `${evidence.id}${ext}`;
+      const filePath = path.join(UPLOAD_DIR, localFileName);
+      return res.sendFile(filePath);
+    }
   } catch (e) {
     logger.error(`Failed to serve evidence file: ${e}`);
-    res.status(500).json({ error: "Failed to retrieve evidence file" });
+    res.status(500).send('Internal server error');
   }
 });
 

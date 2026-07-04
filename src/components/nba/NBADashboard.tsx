@@ -164,7 +164,7 @@ export default function NBADashboard() {
             <select
               value={activeProgram?.id || ''}
               onChange={e => fetchProgramDetails(e.target.value)}
-              className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-100"
+              className="px-4 py-2 glass-card rounded-xl text-sm font-semibold focus:ring-2 focus:ring-blue-100"
             >
               {programs.map(p => (
                 <option key={p.id} value={p.id}>
@@ -175,7 +175,7 @@ export default function NBADashboard() {
           )}
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
+            className="px-4 py-2 glass-card border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" /> Add Program
           </button>
@@ -183,7 +183,7 @@ export default function NBADashboard() {
       </div>
 
       {!activeProgram && programs.length === 0 ? (
-        <div className="min-h-[40vh] flex flex-col items-center justify-center text-center p-8 bg-white rounded-3xl border border-slate-100">
+        <div className="min-h-[40vh] flex flex-col items-center justify-center text-center p-8 glass-card rounded-3xl border border-slate-100">
           <div className="p-6 bg-blue-50 rounded-full mb-6">
             <Award className="w-12 h-12 text-blue-400" />
           </div>
@@ -205,7 +205,7 @@ export default function NBADashboard() {
             <div className="lg:col-span-2 space-y-6">
               
               {/* Attainment Chart */}
-              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div className="p-6 glass-card rounded-2xl border border-slate-100 shadow-sm">
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h3 className="font-bold text-lg text-slate-800">PO Attainment Levels</h3>
@@ -228,7 +228,7 @@ export default function NBADashboard() {
                 {activeProgram.programOutcomes[0]?.attainments?.length > 0 ? (
                   <AttainmentChart poAttainments={activeProgram.programOutcomes} />
                 ) : (
-                  <div className="h-[300px] flex flex-col items-center justify-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+                  <div className="h-[300px] flex flex-col items-center justify-center text-slate-400 glass-card rounded-xl border border-dashed border-slate-200">
                     <BarChart className="w-10 h-10 mb-3 text-slate-300" />
                     <p className="text-sm font-medium">Attainments not yet calculated.</p>
                     <p className="text-xs mt-1">Click compute to run the attainment engine.</p>
@@ -245,23 +245,24 @@ export default function NBADashboard() {
 
             <div className="space-y-6">
               {/* Readiness Score Card */}
-              <div className="p-6 bg-slate-900 text-white rounded-3xl shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl" />
-                <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-                  <Award className="w-6 h-6 text-yellow-400" /> Overall Attainment
+              <div className="glass-card rounded-3xl p-8 shadow-xl relative overflow-hidden mb-8">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-orange-500/10 rounded-full blur-3xl translate-y-1/2 -translate-x-1/4" />
+                <h3 className="font-bold text-xl mb-4 flex items-center gap-2 relative z-10 text-slate-900">
+                  <Award className="w-6 h-6 text-yellow-600" /> Overall Attainment
                 </h3>
                 
-                <div className="my-6">
-                  <div className="text-5xl font-bold text-white mb-2">
+                <div className="my-6 relative z-10">
+                  <div className="text-5xl font-bold text-slate-900 mb-2">
                     {overallAttainment > 0 ? overallAttainment.toFixed(2) : '-.--'}
-                    <span className="text-xl text-slate-400 font-normal"> / 3.0</span>
+                    <span className="text-xl text-slate-500 font-normal"> / 3.0</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2">
                     <span className={cn(
                       "px-2.5 py-1 text-xs font-bold rounded-full",
-                      overallAttainment >= 2.0 ? "bg-emerald-500/20 text-emerald-400" :
-                      overallAttainment > 0 ? "bg-amber-500/20 text-amber-400" :
-                      "bg-slate-800 text-slate-400"
+                      overallAttainment >= 2.0 ? "bg-emerald-500/20 text-emerald-700" :
+                      overallAttainment > 0 ? "bg-amber-500/20 text-amber-700" :
+                      "bg-slate-200 text-slate-600"
                     )}>
                       {overallAttainment >= 2.0 ? 'Level 3 Achieved' : 
                        overallAttainment >= 1.5 ? 'Level 2 Achieved' : 
@@ -270,19 +271,19 @@ export default function NBADashboard() {
                   </div>
                 </div>
 
-                <ul className="space-y-3 mb-6 pt-4 border-t border-slate-800">
-                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                    <CheckSquare className="w-4 h-4 text-emerald-400" /> COs Mapped: {activeProgram.courseOutcomes.length}
+                <ul className="space-y-3 mb-6 pt-4 border-t border-slate-200 relative z-10">
+                  <li className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                    <CheckSquare className="w-4 h-4 text-emerald-600" /> COs Mapped: {activeProgram.courseOutcomes.length}
                   </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                    <CheckSquare className="w-4 h-4 text-emerald-400" /> POs Defined: {activeProgram.programOutcomes.length}
+                  <li className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                    <CheckSquare className="w-4 h-4 text-emerald-600" /> POs Defined: {activeProgram.programOutcomes.length}
                   </li>
                 </ul>
 
                 <button
                   onClick={handleDownloadSAR}
                   disabled={downloading}
-                  className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 disabled:opacity-50"
+                  className="w-full py-3 bg-slate-900 text-white font-bold rounded-xl text-sm hover:bg-slate-800 transition-colors shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 relative z-10"
                 >
                   {downloading ? (
                     <RefreshCw className="w-4 h-4 animate-spin" />
@@ -294,7 +295,7 @@ export default function NBADashboard() {
               </div>
               
               {/* Pre-qualifier status */}
-              <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              <div className="glass-card rounded-2xl p-6 border border-slate-100 shadow-sm">
                 <h4 className="font-bold text-lg mb-4 text-slate-800 flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-emerald-500" /> Pre-Qualifier Status
                 </h4>

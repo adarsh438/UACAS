@@ -253,75 +253,7 @@ export default function Login({ onDemoLogin, onLoginSuccess }: LoginProps) {
           </button>
         </motion.form>
 
-        {/* Demo Bypass / Simulation Control */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.25 }}
-          className="pt-2 border-t border-slate-800 space-y-4"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-blue-500" />
-              Offline Simulation Access
-            </span>
-            <button
-              id="simulation-toggle"
-              onClick={() => setIsSimulationEnabled(!isSimulationEnabled)}
-              className={cn(
-                'w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer focus:outline-none',
-                isSimulationEnabled ? 'bg-blue-600' : 'bg-slate-800'
-              )}
-            >
-              <motion.div
-                layout
-                className="w-4 h-4 bg-slate-100 rounded-full shadow-md"
-                animate={{ x: isSimulationEnabled ? 16 : 0 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-              />
-            </button>
-          </div>
 
-          <AnimatePresence>
-            {isSimulationEnabled && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden space-y-3 p-4 bg-slate-950/60 rounded-2xl border border-slate-800/80"
-              >
-                <div className="space-y-1 text-left">
-                  <p className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">
-                    Simulates a logged-in session without DB credentials
-                  </p>
-                </div>
-                <div className="space-y-1.5 text-left">
-                  <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                    Demo Role Privilege
-                  </label>
-                  <select
-                    id="demo-role-select"
-                    value={demoRole}
-                    onChange={(e) => setDemoRole(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-xl text-xs font-bold text-slate-300 focus:outline-none focus:border-blue-500"
-                  >
-                    {DEMO_ROLES.map((r) => (
-                      <option key={r.id} value={r.id}>{r.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <button
-                  id="simulation-enter"
-                  onClick={() => onDemoLogin(demoRole)}
-                  className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" /> Simulate &amp; Enter
-                </button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
 
         {/* Footer */}
         <p className="text-center text-[10px] text-slate-600">

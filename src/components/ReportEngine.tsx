@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Download, Target, BarChart2, BookOpen, Database, Calendar } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export default function ReportEngine({ onDownload }: { onDownload: (format: 'pdf' | 'docx' | 'xlsx' | 'json', year: string) => void }) {
+export default function ReportEngine({ onDownload }: { onDownload: (format: 'pdf' | 'docx' | 'xlsx' | 'json', year: string, inclusions?: any) => void }) {
   const [selectedYear, setSelectedYear] = useState('2024-25');
   const [inclusions, setInclusions] = useState({
     aiNarrative: true,
@@ -43,28 +43,28 @@ export default function ReportEngine({ onDownload }: { onDownload: (format: 'pdf
             
             <div className="grid grid-cols-2 gap-2 relative z-10">
                <button 
-                  onClick={() => onDownload('pdf', selectedYear)} 
+                  onClick={() => onDownload('pdf', selectedYear, inclusions)} 
                   className="py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs hover:bg-slate-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Export PDF Report"
                >
                   <Download className="w-3.5 h-3.5" /> PDF
                </button>
                <button 
-                  onClick={() => onDownload('docx', selectedYear)} 
+                  onClick={() => onDownload('docx', selectedYear, inclusions)} 
                   className="py-2.5 bg-blue-600 text-white rounded-xl font-bold text-xs hover:bg-blue-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Export Word Document (.docx)"
                >
                   <FileText className="w-3.5 h-3.5 text-blue-100" /> Word
                </button>
                <button 
-                  onClick={() => onDownload('xlsx', selectedYear)} 
+                  onClick={() => onDownload('xlsx', selectedYear, inclusions)} 
                   className="py-2.5 bg-green-700 text-white rounded-xl font-bold text-xs hover:bg-green-800 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Export Excel Spreadsheet (.xlsx)"
                >
                   <Download className="w-3.5 h-3.5 text-green-100" /> Excel
                </button>
                <button 
-                  onClick={() => onDownload('json', selectedYear)} 
+                  onClick={() => onDownload('json', selectedYear, inclusions)} 
                   className="py-2.5 bg-amber-600 text-white rounded-xl font-bold text-xs hover:bg-amber-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   title="Export Raw JSON Data"
                >
@@ -169,10 +169,10 @@ export default function ReportEngine({ onDownload }: { onDownload: (format: 'pdf
                   <p className="text-slate-400 text-sm">The engine will collect the latest data points from the central repository and synthesize an audit-ready document.</p>
                </div>
                <div className="space-y-3 mt-8">
-                  <button onClick={() => onDownload('pdf', selectedYear)} className="w-full py-4 bg-blue-600 font-bold rounded-2xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30 text-sm flex items-center justify-center gap-2">
+                  <button onClick={() => onDownload('pdf', selectedYear, inclusions)} className="w-full py-4 bg-blue-600 font-bold rounded-2xl hover:bg-blue-500 transition-colors shadow-lg shadow-blue-600/30 text-sm flex items-center justify-center gap-2">
                      <Download className="w-4 h-4" /> Compile & Download PDF
                   </button>
-                  <button onClick={() => onDownload('docx', selectedYear)} className="w-full py-4 bg-slate-800 text-slate-300 font-bold rounded-2xl hover:bg-slate-700 transition-colors text-sm flex items-center justify-center gap-2">
+                  <button onClick={() => onDownload('docx', selectedYear, inclusions)} className="w-full py-4 bg-slate-800 text-slate-300 font-bold rounded-2xl hover:bg-slate-700 transition-colors text-sm flex items-center justify-center gap-2">
                      <FileText className="w-4 h-4" /> Compile & Download Word (.docx)
                   </button>
                </div>

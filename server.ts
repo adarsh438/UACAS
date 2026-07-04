@@ -24,6 +24,27 @@ export async function createApp() {
 
   // --- Security & Middleware ---
   app.set("trust proxy", true);
+
+  // Enforce SSL/HTTPS redirection in production environments
+  if (process.env.NODE_ENV === 'production') {
+    app.use((req, res, next) => {
+      if (req.headers['x-forwarded-proto'] !== 'https' && req.headers['x-forwarded-proto']) {
+        return res.redirect(`https://${req.headers.host}${req.url}`);
+      }
+      next();
+    });
+  }
+
+  // Safety Check: Strict production guardrails for JWT validation keys
+  if (process.env.NODE_ENV === 'production') {
+    const secret = process.env.JWT_SECRET;
+    const defaults = ['default_secret', 'admin_key', '123456', 'uacas_secret_placeholder'];
+    
+    if (!secret || secret.length < 32 || defaults.some(d => secret.toLowerCase().includes(d))) {
+      console.error('\x1b[31m%s\x1b[0m', 'FATAL STARTUP ERROR: A unique and cryptographically secure JWT_SECRET of at least 32 characters is REQUIRED in production.');
+      process.exit(1);
+    }
+  }
   app.use(helmet({
     contentSecurityPolicy: {
       directives: {
@@ -78,6 +99,18 @@ export async function createApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan('combined', { stream: { write: (message: string) => logger.info(message.trim()) } }));
+
+  // Configure static PDF assets directory to allow cross-origin inline previewing
+  app.use('/static', express.static(path.join(process.cwd(), 'static'), {
+    setHeaders: (res, filePath) => {
+      if (path.extname(filePath) === '.pdf') {
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', 'inline');
+        res.setHeader('Access-Control-Allow-Origin', '*'); 
+        res.setHeader('Access-Control-Allow-Methods', 'GET');
+      }
+    }
+  }));
 
   // --- Health Check ---
   app.get('/health', (_req, res) => {

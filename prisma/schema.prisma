@@ -21,15 +21,20 @@ model University {
   state             String?
   zipCode           String?
   logoUrl           String?
+  logoData          Bytes?   // Store logo binary for serverless environments
   website           String?
   established       Int?
   type              String?  // Public, Private, Deemed, Autonomous
   affiliation       String?  // Affiliated university name
   aisheCode         String?
+  naacId            String?  // NAAC permanent ID
   ugcRecognition    String?
   naacCycle         Int?     // 1, 2, 3, 4
   naacGrade         String?  // Last obtained grade
   totalPrograms     Int?
+  setupCompleted    Boolean  @default(false)
+  contactEmail      String?
+  contactPhone      String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -106,20 +111,23 @@ model University {
 }
 
 model User {
-  id            String     @id @default(uuid())
-  email         String     @unique
-  emailVerified DateTime?
-  password      String?
-  name          String
-  image         String?
-  role          String     @default("REVIEWER") // SUPER_ADMIN, IQAC_COORDINATOR, DEPT_HEAD, FACULTY, REVIEWER
-  universityId  String     @default("univ-demo-001")
-  university    University @relation(fields: [universityId], references: [id])
-  departmentId  String?
-  createdAt     DateTime   @default(now())
-  updatedAt     DateTime   @updatedAt
-  accounts      Account[]
-  sessions      Session[]
+  id                  String     @id @default(uuid())
+  email               String     @unique
+  emailVerified       DateTime?
+  password            String?
+  name                String
+  image               String?
+  role                String     @default("REVIEWER") // SUPER_ADMIN, IQAC_COORDINATOR, DEPT_HEAD, FACULTY, REVIEWER
+  universityId        String     @default("univ-demo-001")
+  university          University @relation(fields: [universityId], references: [id])
+  departmentId        String?
+  mustChangePassword  Boolean    @default(true)
+  failedLoginAttempts Int        @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  accounts            Account[]
+  sessions            Session[]
   passwordResetTokens PasswordResetToken[]
 }
 
@@ -234,6 +242,7 @@ model Evidence {
   name         String
   fileUrl      String
   fileType     String?  // PDF, IMAGE, WORD, EXCEL
+  fileData     Bytes?   // Stores actual file content to bypass ephemeral storage
   criterion    String   // C1, C2, C3, C4, C5, C6, C7
   metricCode   String?  // e.g., 1.1.1, 2.4.1
   academicYear String?
@@ -242,6 +251,9 @@ model Evidence {
   universityId String
   university   University @relation(fields: [universityId], references: [id])
   createdAt    DateTime @default(now())
+
+  @@index([universityId, academicYear])
+  @@index([criterion])
 }
 
 model AuditLog {
@@ -285,6 +297,8 @@ model BosMeeting {
   universityId   String
   university     University @relation(fields: [universityId], references: [id])
   createdAt      DateTime @default(now())
+
+  @@index([universityId, academicYear])
 }
 
 model NewCourse {
@@ -357,6 +371,8 @@ model EnrollmentRecord {
   universityId    String
   university      University @relation(fields: [universityId], references: [id])
   createdAt       DateTime @default(now())
+
+  @@index([universityId, academicYear])
 }
 
 model RemedialProgram {
@@ -513,6 +529,8 @@ model Publication {
   universityId  String
   university    University @relation(fields: [universityId], references: [id])
   createdAt     DateTime @default(now())
+
+  @@index([universityId, year])
 }
 
 model ExtensionActivity {
@@ -646,6 +664,8 @@ model PlacementRecord {
   universityId String
   university   University @relation(fields: [universityId], references: [id])
   createdAt    DateTime @default(now())
+
+  @@index([universityId, academicYear])
 }
 
 model CompetitiveExamResult {

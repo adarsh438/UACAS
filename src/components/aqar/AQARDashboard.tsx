@@ -97,46 +97,46 @@ export default function AQARDashboard() {
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight">AQAR Management</h1>
-          <p className="text-slate-500 mt-1">Annual Quality Assurance Reports — auto-populated from SSR data</p>
+          <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">AQAR Management</h1>
+          <p className="text-slate-300">Annual Quality Assurance Report tracking and generation.</p>
         </div>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-              <CheckCircle className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-medium text-slate-500">Submitted</span>
+      {/* Stats row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="glass-card rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Submitted</p>
+            <h3 className="text-3xl font-bold text-slate-900">{submittedCount}</h3>
           </div>
-          <h3 className="text-3xl font-bold text-slate-900">{submittedCount}</h3>
+          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+            <CheckCircle className="w-6 h-6" />
+          </div>
         </div>
-        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
-              <Clock className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-medium text-slate-500">In Draft</span>
+        <div className="glass-card rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">In Draft</p>
+            <h3 className="text-3xl font-bold text-slate-900">{draftCount}</h3>
           </div>
-          <h3 className="text-3xl font-bold text-slate-900">{draftCount}</h3>
+          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+            <Clock className="w-6 h-6" />
+          </div>
         </div>
-        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <span className="text-sm font-medium text-slate-500">Available Years</span>
+        <div className="glass-card rounded-2xl p-6 shadow-sm border border-slate-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-medium text-slate-500 mb-1">Available Years</p>
+            <h3 className="text-3xl font-bold text-slate-900">{availableYears.length + records.length}</h3>
           </div>
-          <h3 className="text-3xl font-bold text-slate-900">{availableYears.length + records.length}</h3>
+          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+            <Calendar className="w-6 h-6" />
+          </div>
         </div>
       </div>
 
       {/* Existing AQARs */}
       {records.length > 0 && (
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-slate-700">AQAR Records</h2>
+          <h2 className="text-lg font-bold text-slate-700">Existing Records</h2>
           <div className="grid gap-4">
             <AnimatePresence>
               {records.map((record, idx) => {
@@ -148,7 +148,7 @@ export default function AQARDashboard() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.05 }}
-                    className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"
+                    className="glass-card p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
@@ -165,11 +165,6 @@ export default function AQARDashboard() {
                             <span className="text-xs text-slate-400">
                               {record._count.iqacActivities} IQAC activities logged
                             </span>
-                            {record.submittedDate && (
-                              <span className="text-xs text-slate-400">
-                                • Submitted {new Date(record.submittedDate).toLocaleDateString('en-IN')}
-                              </span>
-                            )}
                           </div>
                         </div>
                       </div>
@@ -177,7 +172,7 @@ export default function AQARDashboard() {
                         <button
                           onClick={() => handleDownload(record.year)}
                           disabled={downloading === record.year}
-                          className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                          className="px-4 py-2.5 glass-card border border-slate-200 rounded-xl text-sm font-semibold hover:bg-white/50 transition-colors flex items-center gap-2 disabled:opacity-50"
                         >
                           {downloading === record.year ? (
                             <span className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full" />
@@ -208,18 +203,15 @@ export default function AQARDashboard() {
       {availableYears.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-700">Start New AQAR</h2>
-          <p className="text-sm text-slate-500">These academic years have SSR data available but no AQAR created yet.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {availableYears.map(year => (
-              <motion.button
+              <button
                 key={year}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
                 onClick={() => handleCreateNew(year)}
-                className="p-5 bg-white rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 hover:bg-blue-50/30 transition-all text-left group"
+                className="p-5 glass-card rounded-2xl border-2 border-dashed border-slate-200 hover:border-blue-400 transition-all text-left group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-slate-100 group-hover:bg-blue-100 rounded-xl transition-colors">
+                  <div className="p-2.5 bg-white/50 group-hover:bg-blue-100 rounded-xl transition-colors">
                     <Plus className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
                   </div>
                   <div>
@@ -227,7 +219,7 @@ export default function AQARDashboard() {
                     <p className="text-xs text-slate-400">Create AQAR from SSR data</p>
                   </div>
                 </div>
-              </motion.button>
+                </button>
             ))}
           </div>
         </div>

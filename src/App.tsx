@@ -19,7 +19,8 @@ import {
   GraduationCap,
   Award,
   TrendingUp,
-  ShieldAlert
+  ShieldAlert,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -36,6 +37,11 @@ import AQARDashboard from './components/aqar/AQARDashboard';
 import LandingPage from './components/LandingPage';
 import NIRFDashboard from './components/nirf/NIRFDashboard';
 import SuperAdminPanel from './components/admin/SuperAdminPanel';
+import ErrorBoundary from './components/ErrorBoundary';
+import ForceChangePassword from './components/ForceChangePassword';
+import SetupWizard from './components/SetupWizard';
+import GettingStartedBanner from './components/GettingStartedBanner';
+import HelpGuide from './components/HelpGuide';
 import { Routes, Route, Navigate } from 'react-router-dom';
 // Authentication handled via Auth.js
 
@@ -166,23 +172,23 @@ const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
 );
 
 const StatCard = ({ label, value, trend, icon: Icon, suffix = "" }: any) => (
-  <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+  <div className="p-6 glass-card rounded-2xl hover:bg-white/50 transition-all group">
     <div className="flex justify-between items-start mb-4">
-      <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
+      <div className="p-3 bg-blue-600/10 rounded-xl text-blue-600 group-hover:scale-110 transition-transform">
         <Icon className="w-6 h-6" />
       </div>
       {trend && (
         <span className={cn(
-          "text-xs font-semibold px-2 py-1 rounded-full",
-          trend > 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+          "text-xs font-bold px-2.5 py-1 rounded-full",
+          trend > 0 ? "bg-emerald-500/20 text-emerald-700" : "bg-rose-500/20 text-rose-700"
         )}>
           {trend > 0 ? "+" : ""}{trend}%
         </span>
       )}
     </div>
-    <div className="space-y-1">
-      <p className="text-sm font-medium text-slate-500">{label}</p>
-      <h3 className="text-2xl font-bold text-slate-900">{value}{suffix}</h3>
+    <div className="space-y-1 text-slate-800">
+      <p className="text-sm font-semibold opacity-70">{label}</p>
+      <h3 className="text-3xl font-extrabold tracking-tight">{value}{suffix}</h3>
     </div>
   </div>
 );
@@ -201,6 +207,7 @@ export default function App() {
   const [aiContext, setAiContext] = useState('');
   const [aiResult, setAiResult] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [lastBackedUp, setLastBackedUp] = useState<string | null>(null);
 
   const [university, setUniversity] = useState<any>(null);
   const [facultyList, setFacultyList] = useState<any[]>([]);
@@ -261,13 +268,17 @@ export default function App() {
 
   // Synchronize mock token to the global window environment
   useEffect(() => {
+    if (session?.user) {
+      delete (window as any).activeMockToken;
+      return;
+    }
     const matchedRole = ROLES.find(r => r.id === activeMockRole);
     if (matchedRole) {
       (window as any).activeMockToken = matchedRole.token;
     } else {
       delete (window as any).activeMockToken;
     }
-  }, [activeMockRole]);
+  }, [activeMockRole, session]);
 
   useEffect(() => {
     if (!activeUser) return; // Only fetch if logged in
@@ -312,7 +323,7 @@ export default function App() {
     }
   };
 
-  const downloadReport = async (format: 'pdf' | 'docx' | 'xlsx' | 'json' = 'pdf', year: string = '2024-25') => {
+  const downloadReport = async (format: 'pdf' | 'docx' | 'xlsx' | 'json' = 'pdf', year: string = '2024-25', inclusions?: any) => {
     if (!activeUser) return;
     try {
       const res = await fetch(`/api/reports/generate/${format}`, {
@@ -320,7 +331,7 @@ export default function App() {
         headers: { 
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ year })
+        body: JSON.stringify({ year, inclusions })
       });
       if (!res.ok) {
         throw new Error(`Server returned error: ${res.statusText}`);
@@ -378,19 +389,38 @@ export default function App() {
     );
   }
 
+  // ── Force Password Change Guard ──
+  if (activeUser && session?.user?.mustChangePassword) {
+    return (
+      <ErrorBoundary>
+        <ForceChangePassword onSuccess={fetchSession} />
+      </ErrorBoundary>
+    );
+  }
+
+  // ── First-Time Setup Wizard Guard ──
+  if (activeUser && session?.user?.setupCompleted === false && (session?.user?.role === 'SUPER_ADMIN' || session?.user?.role === 'IQAC_COORDINATOR')) {
+    return (
+      <ErrorBoundary>
+        <SetupWizard onComplete={fetchSession} />
+      </ErrorBoundary>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex bg-slate-50 font-sans">
+    <ErrorBoundary>
+    <div className="min-h-screen flex font-sans bg-mesh text-slate-100">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-[#1e293b] text-white transition-all duration-300 fixed h-full z-50",
+        "glass-sidebar transition-all duration-300 fixed h-full z-50 flex flex-col",
         isSidebarOpen ? "w-64" : "w-20"
       )}>
-        <div className="p-6 flex items-center gap-3">
+        <div className="p-6 flex items-center gap-3 shrink-0">
           <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-lg">U</div>
           {isSidebarOpen && <span className="text-xl font-bold tracking-tight">UACAS</span>}
         </div>
 
-        <nav className="px-3 mt-4 space-y-2">
+        <nav className="px-3 mt-4 space-y-2 flex-1 overflow-y-auto overflow-x-hidden pb-4">
           <SidebarItem 
             icon={LayoutDashboard} 
             label={isSidebarOpen ? "Dashboard" : ""} 
@@ -474,23 +504,21 @@ export default function App() {
           />
         </nav>
 
-        <div className="absolute bottom-6 left-0 w-full px-3">
-          <SidebarItem 
-            icon={Settings} 
-            label={isSidebarOpen ? "Settings" : ""} 
-            active={activeTab === 'settings'} 
-            onClick={() => setActiveTab('settings')} 
-          />
+        <div className="mt-auto p-3 shrink-0 border-t border-slate-800">
+            <SidebarItem icon={FileText} label="Report Engine" active={activeTab === 'reports'} onClick={() => setActiveTab('reports')} />
+            <SidebarItem icon={Settings} label="System Management" active={activeTab === 'settings'} onClick={() => setActiveTab('settings')} />
+            <div className="my-2 border-t border-slate-700"></div>
+            <SidebarItem icon={HelpCircle} label="Help & FAQ" active={activeTab === 'help'} onClick={() => setActiveTab('help')} />
         </div>
       </aside>
 
       {/* Main Content */}
       <main className={cn(
-        "flex-1 transition-all duration-300",
+        "flex-1 flex flex-col min-h-screen transition-all duration-300",
         isSidebarOpen ? "ml-64" : "ml-20"
       )}>
         {/* Top Header */}
-        <header className="h-16 bg-white border-bottom border-slate-200 flex items-center justify-between px-8 sticky top-0 z-40">
+        <header className="h-16 glass-card border-b-0 border-white/10 flex items-center justify-between px-8 sticky top-0 z-40 text-slate-900">
           <div className="flex items-center gap-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-600">
               <Menu className="w-5 h-5" />
@@ -540,7 +568,7 @@ export default function App() {
         </header>
 
         {/* Dashboard Hub */}
-        <div className="p-8 max-w-7xl mx-auto">
+        <div className="p-8 flex-1 relative">
           {activeMockRole === 'REVIEWER' && (
             <div className="mb-6 p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl flex items-center gap-3 shadow-sm font-sans">
               <ShieldAlert className="w-5 h-5 text-amber-600 flex-shrink-0 animate-pulse" />
@@ -569,15 +597,16 @@ export default function App() {
                 {activeTab === 'dashboard' && (
               <motion.div 
                 key="dashboard"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="space-y-8"
               >
                 <div className="flex justify-between items-end">
                   <div>
-                    <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Institutional Dashboard</h1>
-                    <p className="text-slate-500">Live accreditation readiness and compliance metrics.</p>
+                    <h1 className="text-3xl font-bold text-white tracking-tight drop-shadow-md">Institutional Dashboard</h1>
+                    <p className="text-slate-300">Live accreditation readiness and compliance metrics.</p>
                   </div>
                   <div className="flex gap-3">
                     <button 
@@ -591,6 +620,17 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                {/* Getting Started Banner */}
+                <GettingStartedBanner items={[
+                  { label: 'Complete institution profile', completed: !!university?.name && !!university?.aisheCode, onClick: () => setActiveTab('profile') },
+                  { label: 'Add departments & programs', completed: (stats?.totalFaculty || 0) > 0, onClick: () => setActiveTab('profile') },
+                  { label: 'Enter Criterion I data', completed: (stats?.naacProgress || 0) > 5, onClick: () => { setActiveTab('naac'); } },
+                  { label: 'Enter Criterion II data', completed: (stats?.naacProgress || 0) > 15, onClick: () => { setActiveTab('naac'); } },
+                  { label: 'Enter Criterion III data', completed: (stats?.totalPublications || 0) > 0, onClick: () => { setActiveTab('naac'); } },
+                  { label: 'Upload evidence documents', completed: (stats?.pendingEvidences || 0) > 0, onClick: () => setActiveTab('evidence') },
+                  { label: 'Generate SSR report', completed: false, onClick: () => setActiveTab('reports') },
+                ]} />
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
@@ -607,10 +647,10 @@ export default function App() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                    {/* Main Analytics Chart Area */}
                    <div className="lg:col-span-2 space-y-6">
-                      <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm min-h-[400px]">
+                      <div className="p-6 glass-card rounded-2xl min-h-[400px]">
                          <div className="flex justify-between items-center mb-6">
-                            <h3 className="font-bold text-lg">Accreditation Growth (Criteria-wise)</h3>
-                            <select className="text-xs bg-slate-50 border-none rounded-lg font-medium p-2">
+                            <h3 className="font-bold text-lg text-slate-800">Accreditation Growth (Criteria-wise)</h3>
+                            <select className="text-xs bg-white/50 border-none rounded-lg font-medium p-2 text-slate-800 focus:outline-none">
                                <option>Academic Year 2024-25</option>
                                <option>Academic Year 2023-24</option>
                             </select>
@@ -621,34 +661,21 @@ export default function App() {
                       </div>
                    </div>
 
-                   {/* Quick Tasks / Recent Evidence */}
+                   {/* AI Insights & Assistant */}
                    <div className="space-y-6">
-                     <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
-                        <h3 className="font-bold text-lg mb-4">Pending Approvals</h3>
-                        <div className="space-y-4">
-                           {[1, 2, 3].map(i => (
-                             <div key={i} className="flex gap-3 items-start p-3 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer border-l-4 border-blue-500">
-                                <div className="flex-1">
-                                   <p className="text-sm font-semibold">Faculty Research Paper - C3.2</p>
-                                   <p className="text-xs text-slate-500">Submitted by Dr. Sharma • 2h ago</p>
-                                </div>
-                                <div className="p-1 bg-blue-50 rounded-full">
-                                   <ClipboardCheck className="w-4 h-4 text-blue-600" />
-                                </div>
-                             </div>
-                           ))}
-                        </div>
-                        <button className="w-full mt-6 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition-colors">
-                           View All Tasks
-                        </button>
-                     </div>
-
-                     <div className="p-6 bg-[#0c4a6e] text-white rounded-2xl shadow-xl shadow-blue-900/20">
-                        <h3 className="font-bold text-lg mb-2">AI Compliance Officer</h3>
-                        <p className="text-xs text-slate-300 mb-4 line-height-relaxed">Based on current evidence, your NAAC Grade prediction has improved to <b>A+ (3.54 CGPA)</b>.</p>
-                        <button className="px-4 py-2 bg-white text-slate-900 rounded-lg text-xs font-bold hover:bg-slate-100">
-                           Get Suggestions
-                        </button>
+                     <div className="glass-card rounded-2xl p-6 h-full flex flex-col text-slate-800">
+                       <div className="flex items-center gap-2 mb-4">
+                         <div className="p-2 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg text-white">
+                            <Sparkles className="w-4 h-4" />
+                         </div>
+                         <h3 className="font-bold text-lg">AI Readiness Insights</h3>
+                       </div>
+                       <p className="text-sm opacity-80 mb-4 leading-relaxed">
+                          "Based on your current data, your institution is severely lagging in <strong className="font-bold">Criterion 3 (Research)</strong>. You have 0 registered patents this academic year, which may result in a sub-optimal grade. It is highly recommended to upload documentation for ongoing research grants."
+                       </p>
+                       <button className="mt-auto w-full py-2.5 border-2 border-blue-600/30 text-blue-700 font-bold rounded-xl hover:bg-blue-600/10 transition-colors">
+                          Generate Action Plan
+                       </button>
                      </div>
                    </div>
                 </div>
@@ -658,8 +685,10 @@ export default function App() {
             {activeTab === 'profile' && (
               <motion.div 
                 key="profile"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="space-y-8"
               >
                 <div className="flex justify-between items-center">
@@ -705,8 +734,10 @@ export default function App() {
             {activeTab === 'faculty' && (
               <motion.div 
                 key="faculty"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="space-y-8"
               >
                 <div className="flex justify-between items-center">
@@ -757,10 +788,11 @@ export default function App() {
 
             {activeTab === 'naac' && (
               <motion.div 
-                key={activeCriterion !== null ? `c${activeCriterion}` : 'naac-hub'}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+                key="naac"
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 {activeCriterion !== null ? (
                   <CriterionForm
@@ -854,8 +886,10 @@ export default function App() {
             {activeTab === 'system' && (
               <motion.div 
                 key="system"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 className="space-y-8"
               >
                 <div className="flex justify-between items-center">
@@ -899,12 +933,22 @@ export default function App() {
                       <Database className="w-6 h-6" /> Local Database Backup
                     </h3>
                     <p className="text-slate-400 text-sm mb-6">Schedule backups of your local PostgreSQL instance and institutional records.</p>
+                    
+                    {lastBackedUp && (
+                      <div className="mb-4 text-xs font-medium text-emerald-400 flex items-center gap-1.5">
+                        <CheckCircle className="w-4 h-4" /> Last backed up: {lastBackedUp}
+                      </div>
+                    )}
+                    
                     <div className="space-y-3">
-                       <button className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold transition-all">
+                       <button 
+                         onClick={() => {
+                           setLastBackedUp(new Date().toLocaleString());
+                           window.location.href = '/api/system/backup';
+                         }}
+                         className="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-bold transition-all"
+                       >
                           Create Instant Backup
-                       </button>
-                       <button className="w-full py-4 bg-white/10 hover:bg-white/20 rounded-2xl font-bold transition-all">
-                          Restore from Last Snapshot
                        </button>
                     </div>
                   </div>
@@ -915,8 +959,10 @@ export default function App() {
             {activeTab === 'nba' && (
               <motion.div 
                 key="nba"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <NBADashboard />
               </motion.div>
@@ -925,8 +971,10 @@ export default function App() {
             {activeTab === 'obe' && (
               <motion.div 
                 key="obe"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <OBETracking />
               </motion.div>
@@ -935,18 +983,34 @@ export default function App() {
             {activeTab === 'reports' && (
               <motion.div 
                 key="reports"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <ReportEngine onDownload={downloadReport} />
+              </motion.div>
+            )}
+            
+            {activeTab === 'help' && (
+              <motion.div
+                key="help"
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              >
+                <HelpGuide />
               </motion.div>
             )}
 
             {activeTab === 'evidence' && (
               <motion.div 
                 key="evidence"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <EvidenceVault />
               </motion.div>
@@ -955,8 +1019,10 @@ export default function App() {
             {activeTab === 'aqar' && (
               <motion.div 
                 key="aqar"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <AQARDashboard />
               </motion.div>
@@ -965,8 +1031,10 @@ export default function App() {
             {activeTab === 'nirf' && (
               <motion.div 
                 key="nirf"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <NIRFDashboard />
               </motion.div>
@@ -975,8 +1043,10 @@ export default function App() {
             {activeTab === 'superadmin' && (
               <motion.div 
                 key="superadmin"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.98, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: -20 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
               >
                 <SuperAdminPanel />
               </motion.div>
@@ -997,5 +1067,6 @@ export default function App() {
         </div>
       </main>
     </div>
+    </ErrorBoundary>
   );
 }

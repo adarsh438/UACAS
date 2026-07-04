@@ -203,8 +203,7 @@ export default function NIRFDashboard() {
             </ResponsiveContainer>
           </div>
 
-          {/* Parameter Bars */}
-          <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <div className="glass-card p-6 rounded-2xl border border-slate-100 shadow-sm">
             <h3 className="text-lg font-bold text-slate-800 mb-4">Parameter Scores</h3>
             <ResponsiveContainer width="100%" height={320}>
               <BarChart data={parameterConfig.map(p => ({
@@ -228,9 +227,8 @@ export default function NIRFDashboard() {
         </div>
       )}
 
-      {/* Trend Chart */}
       {trendData.length > 1 && (
-        <div className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+        <div className="glass-card p-6 rounded-2xl border border-slate-100 shadow-sm">
           <h3 className="text-lg font-bold text-slate-800 mb-4">Year-over-Year Trend</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trendData}>
@@ -248,7 +246,6 @@ export default function NIRFDashboard() {
         </div>
       )}
 
-      {/* Score Records */}
       {records.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-700">Score Records</h2>
@@ -259,7 +256,7 @@ export default function NIRFDashboard() {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="p-5 bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"
+                className="glass-card p-5 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
@@ -271,7 +268,7 @@ export default function NIRFDashboard() {
                       <div className="flex items-center gap-4 mt-1">
                         <span className="text-sm font-semibold text-violet-600">{record.totalScore.toFixed(1)} / 100</span>
                         {record.rank && (
-                          <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-md font-bold border border-amber-200">
+                          <span className="text-xs bg-amber-50/50 text-amber-700 px-2 py-0.5 rounded-md font-bold border border-amber-200">
                             Rank #{record.rank}
                           </span>
                         )}
@@ -289,7 +286,7 @@ export default function NIRFDashboard() {
                     <button
                       onClick={() => handleDownload(record.year)}
                       disabled={downloading}
-                      className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
+                      className="px-4 py-2.5 glass-card border border-slate-200 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2 disabled:opacity-50"
                     >
                       <Download className="w-4 h-4" />
                       Report
@@ -310,7 +307,6 @@ export default function NIRFDashboard() {
         </div>
       )}
 
-      {/* Available years */}
       {newYears.length > 0 && (
         <div className="space-y-4">
           <h2 className="text-lg font-bold text-slate-700">Compute New NIRF Scores</h2>
@@ -321,7 +317,7 @@ export default function NIRFDashboard() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => setSelectedYear(year)}
-                className="p-5 bg-white rounded-2xl border-2 border-dashed border-slate-200 hover:border-violet-400 hover:bg-violet-50/30 transition-all text-left group"
+                className="p-5 glass-card rounded-2xl border-2 border-dashed border-slate-200 hover:border-violet-400 transition-all text-left group"
               >
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 bg-slate-100 group-hover:bg-violet-100 rounded-xl transition-colors">

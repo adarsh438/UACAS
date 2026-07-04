@@ -154,6 +154,7 @@ customAuthRouter.get('/me', async (req: Request, res: Response) => {
         universityId: true,
         departmentId: true,
         image: true,
+        mustChangePassword: true,
       },
     });
 
@@ -162,10 +163,59 @@ customAuthRouter.get('/me', async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'User no longer exists' });
     }
 
-    return res.json({ user });
+    // Also check if university setup is completed
+    const university = await prisma.university.findFirst({
+      where: { id: user.universityId },
+      select: { setupCompleted: true },
+    });
+
+    return res.json({ user: { ...user, setupCompleted: university?.setupCompleted ?? false } });
   } catch (err) {
     logger.error(`/me error: ${err}`);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ────────────────────────────────────────────────────────────
+//  POST /api/auth/change-password
+// ────────────────────────────────────────────────────────────
+customAuthRouter.post('/change-password', async (req: Request, res: Response) => {
+  try {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
+
+    const payload = verifyToken(token);
+    if (!payload) return res.status(401).json({ error: 'Token invalid or expired' });
+
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Both current and new passwords are required.' });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: payload.id } });
+    if (!user || !user.password) {
+      return res.status(400).json({ error: 'Cannot change password for this account.' });
+    }
+
+    const isValid = await bcrypt.compare(String(currentPassword), user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect.' });
+    }
+
+    const hashed = await bcrypt.hash(String(newPassword), 12);
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, mustChangePassword: false },
+    });
+
+    logger.info(`Password changed for user ${user.email}`);
+    return res.json({ success: true, message: 'Password changed successfully.' });
+  } catch (err) {
+    logger.error(`Change password error: ${err}`);
+    return res.status(500).json({ error: 'Failed to change password.' });
   }
 });
 
@@ -194,7 +244,8 @@ customAuthRouter.post('/forgot-password', async (req: Request, res: Response) =>
       },
     });
 
-    const resetUrl = `${process.env.APP_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const appUrl = process.env.PUBLIC_BASE_URL || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const resetUrl = `${appUrl}/reset-password?token=${resetToken}`;
 
     // Log to console for local/on-premise deployments without SMTP
     console.log(`\n========================================\nPASSWORD RESET FOR ${email}:\n${resetUrl}\n========================================\n`);

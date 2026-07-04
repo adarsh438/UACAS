@@ -48,7 +48,7 @@ const CriterionCard = ({ cs, onClick, active }: { cs: CriterionScore; onClick: (
     <motion.div
       whileHover={{ y: -2, scale: 1.01 }}
       onClick={onClick}
-      className={`p-5 rounded-2xl cursor-pointer border-2 transition-all ${active ? 'border-indigo-500 bg-indigo-50 shadow-lg shadow-indigo-100' : 'border-slate-100 bg-white hover:border-slate-200 shadow-sm'}`}
+      className={`p-5 rounded-2xl cursor-pointer border transition-all ${active ? 'border-indigo-500/50 bg-indigo-500/10 shadow-lg shadow-indigo-500/20' : 'glass-card hover:border-white/50'}`}
     >
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -148,7 +148,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
           <select
             value={selectedYear}
             onChange={e => setSelectedYear(e.target.value)}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            className="px-4 py-2 glass-card rounded-xl text-sm font-bold text-slate-800 outline-none"
             id="naac-year-selector"
           >
             {YEARS.map(y => <option key={y}>{y}</option>)}
@@ -163,7 +163,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
 
           <button
             onClick={fetchScores}
-            className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors text-slate-600"
+            className="p-2 glass-card rounded-xl text-slate-600 hover:text-blue-600 transition-colors"
             title="Refresh scores"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -197,14 +197,14 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
-              className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              className="p-6 glass-card rounded-2xl shadow-sm">
               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Weighted Score</p>
               <p className="text-3xl font-black text-slate-900">{scoreData.totalWeightedScore.toFixed(0)}</p>
               <p className="text-slate-400 text-sm mt-1">/1000 total marks</p>
             </motion.div>
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
-              className="p-6 bg-white rounded-2xl border border-slate-100 shadow-sm">
+              className="p-6 glass-card rounded-2xl shadow-sm">
               <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-2">Data Completion</p>
               <p className="text-3xl font-black text-emerald-600">{scoreData.completionPercent}%</p>
               <div className="w-full h-1.5 bg-slate-100 rounded-full mt-2">
@@ -225,13 +225,16 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
           </div>
 
           {/* View Toggle */}
-          <div className="flex gap-2 border-b border-slate-100 pb-0">
-            {[['overview', 'Overview'], ['metrics', 'Metric Detail'], ['gap', 'Gap Analysis']].map(([v, l]) => (
-              <button key={v} onClick={() => setActiveView(v as any)}
-                className={`px-4 py-3 text-sm font-bold border-b-2 transition-colors ${activeView === v ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                {l}
-              </button>
-            ))}
+          <div className="glass-card rounded-2xl p-1.5 inline-flex mb-8">
+            <button onClick={() => setActiveView('overview')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeView === 'overview' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}>
+              Overview
+            </button>
+            <button onClick={() => setActiveView('metrics')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${activeView === 'metrics' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}>
+              Metric Detail
+            </button>
+            <button onClick={() => setActiveView('gap')} className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${activeView === 'gap' ? 'bg-amber-500 text-white shadow-md' : 'text-slate-600 hover:text-amber-600'}`}>
+              Gap Analysis <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md text-[10px]">{scoreData.gapAnalysis.length}</span>
+            </button>
           </div>
 
           <AnimatePresence mode="wait">
@@ -247,7 +250,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                   </div>
 
                   {/* Radar Chart */}
-                  <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                  <div className="xl:col-span-2 glass-card rounded-2xl p-6">
                     <h3 className="font-bold text-lg mb-1">Criteria Performance</h3>
                     <p className="text-slate-400 text-sm mb-6">Spider chart across all 7 NAAC criteria</p>
                     <ResponsiveContainer width="100%" height={300}>
@@ -270,7 +273,7 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                 </div>
 
                 {/* Bar Chart */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
+                <div className="glass-card rounded-2xl p-6 mt-8">
                   <h3 className="font-bold text-lg mb-6">Score Distribution by Criterion</h3>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={barData} barGap={8}>
@@ -295,8 +298,8 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
 
             {activeView === 'metrics' && selectedCriterionData && (
               <motion.div key="metrics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-                className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-slate-100 flex justify-between items-center"
+                className="glass-card rounded-2xl overflow-hidden">
+                <div className="p-6 border-b border-white/20 flex justify-between items-center"
                   style={{ background: CRITERION_COLORS[selectedCriterionData.criterion - 1] + '10' }}>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest" style={{ color: CRITERION_COLORS[selectedCriterionData.criterion - 1] }}>
@@ -309,9 +312,9 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                     <p className="text-slate-400 text-sm">/{selectedCriterionData.maxScore}</p>
                   </div>
                 </div>
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-100">
                   {selectedCriterionData.metrics.map(m => (
-                    <div key={m.code} className="p-4 flex items-start gap-4 hover:bg-slate-50 transition-colors">
+                    <div key={m.code} className="p-4 flex items-start gap-4 hover:bg-white/50 transition-colors">
                       <FlagDot flag={m.flag} />
                       <div className="flex-1">
                         <div className="flex justify-between items-start mb-1">
@@ -375,16 +378,16 @@ export default function NAACDashboard({ onCriterionSelect }: { onCriterionSelect
                     <p className="text-emerald-500 text-sm">No gaps requiring immediate attention.</p>
                   </div>
                 ) : (
-                  <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                  <div className="glass-card rounded-2xl overflow-hidden">
                     <table className="w-full text-left">
-                      <thead className="bg-slate-50 border-b border-slate-100">
+                      <thead className="bg-white/50 border-b border-white/20">
                         <tr>
                           {['Priority', 'Criterion', 'Metric', 'Score', 'Gap', 'Action'].map(h => (
                             <th key={h} className="px-5 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">{h}</th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-50">
+                      <tbody className="divide-y divide-slate-100">
                         {scoreData.gapAnalysis.map((g, i) => (
                           <tr key={i} className="hover:bg-slate-50 transition-colors">
                             <td className="px-5 py-4">
